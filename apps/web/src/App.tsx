@@ -3,13 +3,19 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/app-shell';
 import { RequireAuth, RequireRole } from './components/guards';
 import { ChangePasswordPage } from './pages/change-password-page';
+import { ContactsPage } from './pages/contacts-page';
 import { DashboardPage } from './pages/dashboard-page';
 import { ForbiddenPage, NotFoundPage } from './pages/error-pages';
+import { ImportsPage } from './pages/imports-page';
+import { IntegrationLogsPage } from './pages/integration-logs-page';
+import { ListsPage } from './pages/lists-page';
 import { LoginPage } from './pages/login-page';
 import { PlaceholderPage } from './pages/placeholder-page';
 import { ProfilePage } from './pages/profile-page';
 import { SettingsPage } from './pages/settings-page';
+import { TagsPage } from './pages/tags-page';
 import { UsersPage } from './pages/users-page';
+import { WhatsAppPage } from './pages/whatsapp-page';
 
 export default function App() {
   return (
@@ -25,6 +31,17 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="tags" element={<TagsPage />} />
+        <Route path="lists" element={<ListsPage />} />
+        <Route
+          path="imports"
+          element={
+            <RequireRole roles={['ADMIN', 'MANAGER']}>
+              <ImportsPage />
+            </RequireRole>
+          }
+        />
         <Route
           path="users"
           element={
@@ -46,6 +63,22 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN']}>
               <PlaceholderPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="whatsapp"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <WhatsAppPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="integration-logs"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <IntegrationLogsPage />
             </RequireRole>
           }
         />

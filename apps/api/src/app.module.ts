@@ -9,6 +9,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { HealthModule } from './modules/health/health.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { IntegrationLogsModule } from './modules/integration-logs/integration-logs.module';
+import { ContactsModule } from './modules/contacts/contacts.module';
+import { ImportsModule } from './modules/imports/imports.module';
+import { QueueModule } from './common/queue/queue.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { DatabaseModule } from './common/database/database.module';
 import { RedisModule } from './common/redis/redis.module';
@@ -60,10 +65,15 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     CryptoModule,
     CommonAuthModule,
     AuditModule,
+    QueueModule,
     AuthModule,
     UsersModule,
     SettingsModule,
     HealthModule,
+    WhatsAppModule,
+    IntegrationLogsModule,
+    ContactsModule,
+    ImportsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },

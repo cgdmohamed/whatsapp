@@ -37,7 +37,7 @@ export const apiEnvSchema = z
     META_ACCESS_TOKEN: z.string().optional(),
     META_WABA_ID: z.string().optional(),
     META_PHONE_NUMBER_ID: z.string().optional(),
-    META_GRAPH_API_VERSION: z.string().optional(),
+    META_GRAPH_API_VERSION: z.string().default('v21.0'),
     SEED_ADMIN_NAME: z.string().optional(),
     SEED_ADMIN_EMAIL: z.string().email().optional(),
     SEED_ADMIN_PASSWORD: z.string().optional(),

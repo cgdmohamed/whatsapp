@@ -8,6 +8,27 @@
       "when": 1785491802221,
       "tag": "0000_aberrant_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785494633781,
+      "tag": "0001_dark_pestilence",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785496493699,
+      "tag": "0002_early_morgan_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785498884260,
+      "tag": "0003_solid_corsair",
+      "breakpoints": true
     }
   ]
 }
