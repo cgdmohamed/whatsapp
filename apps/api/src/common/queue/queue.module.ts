@@ -38,6 +38,9 @@ export const INBOX_MEDIA_QUEUE_NAME = 'whatsapp-inbox-media';
 export const EXPORTS_QUEUE = Symbol('EXPORTS_QUEUE');
 export const EXPORTS_QUEUE_NAME = 'reports-exports';
 
+export const EMAIL_QUEUE = Symbol('EMAIL_QUEUE');
+export const EMAIL_QUEUE_NAME = 'transactional-email';
+
 export const QUEUES = [
   WEBHOOK_QUEUE,
   IMPORTS_QUEUE,
@@ -51,6 +54,7 @@ export const QUEUES = [
   INBOX_SEND_QUEUE,
   INBOX_MEDIA_QUEUE,
   EXPORTS_QUEUE,
+  EMAIL_QUEUE,
 ] as const;
 export type QueueToken = (typeof QUEUES)[number];
 
@@ -69,6 +73,7 @@ export class QueueManager implements OnModuleDestroy {
     @Inject(INBOX_SEND_QUEUE) private readonly inboxSendQueue: Queue,
     @Inject(INBOX_MEDIA_QUEUE) private readonly inboxMediaQueue: Queue,
     @Inject(EXPORTS_QUEUE) private readonly exportsQueue: Queue,
+    @Inject(EMAIL_QUEUE) private readonly emailQueue: Queue,
   ) {}
 
   getQueueByName(name: string): Queue | undefined {
@@ -97,6 +102,8 @@ export class QueueManager implements OnModuleDestroy {
         return this.inboxMediaQueue;
       case EXPORTS_QUEUE_NAME:
         return this.exportsQueue;
+      case EMAIL_QUEUE_NAME:
+        return this.emailQueue;
       default:
         return undefined;
     }
@@ -116,6 +123,7 @@ export class QueueManager implements OnModuleDestroy {
       this.inboxSendQueue.close(),
       this.inboxMediaQueue.close(),
       this.exportsQueue.close(),
+      this.emailQueue.close(),
     ]);
   }
 }
@@ -219,6 +227,14 @@ export class QueueManager implements OnModuleDestroy {
         return new Queue(EXPORTS_QUEUE_NAME, { connection });
       },
     },
+    {
+      provide: EMAIL_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(EMAIL_QUEUE_NAME, { connection });
+      },
+    },
     QueueManager,
   ],
   exports: [
@@ -234,6 +250,7 @@ export class QueueManager implements OnModuleDestroy {
     INBOX_SEND_QUEUE,
     INBOX_MEDIA_QUEUE,
     EXPORTS_QUEUE,
+    EMAIL_QUEUE,
     QueueManager,
   ],
 })

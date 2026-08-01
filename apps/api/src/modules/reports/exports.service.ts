@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { createReadStream, existsSync } from 'node:fs';
@@ -7,6 +7,7 @@ import type { Response } from 'express';
 import { AUDIT_ACTIONS, type CreateExportInput, type ExportJobDto, type ExportQuery, type PaginatedExports } from '@wa/shared';
 
 import { AuditService } from '../../common/audit/audit.module';
+import { ERROR_CODES } from '../../common/errors';
 import { EXPORTS_QUEUE } from '../../common/queue/queue.module';
 import type { AuthUser } from '../auth/auth.types';
 import { ExportsDao, toExportJobDto } from './exports-dao';
@@ -23,9 +24,12 @@ export class ExportsService {
   ) {}
 
   async create(user: AuthUser, input: CreateExportInput): Promise<ExportJobDto> {
+    if (input.type === 'audit-log' && user.role !== 'ADMIN') {
+      throw new ForbiddenException(ERROR_CODES.FORBIDDEN);
+    }
     const filters = input.filters ?? null;
     if (input.type === 'campaign-recipients' && typeof filters?.campaignId !== 'string') {
-      throw new BadRequestException('EXPORT_REQUIRES_CAMPAIGN');
+      throw new BadRequestException(ERROR_CODES.EXPORT_REQUIRES_CAMPAIGN);
     }
 
     const row = await this.exportsDao.insert({
@@ -39,6 +43,7 @@ export class ExportsService {
       'export',
       { exportJobId: row.id },
       {
+        jobId: `export-${row.id}`,
         attempts: 2,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: { count: 100 },
@@ -73,7 +78,7 @@ export class ExportsService {
   async get(user: AuthUser, id: string): Promise<ExportJobDto> {
     const row = await this.exportsDao.findById(id);
     if (!row) {
-      throw new NotFoundException('EXPORT_NOT_FOUND');
+      throw new NotFoundException(ERROR_CODES.EXPORT_NOT_FOUND);
     }
     this.assertAccess(user, row.createdByUserId);
     return toExportJobDto(row, row.status === 'COMPLETED' ? `${DOWNLOAD_URL_PREFIX}/${row.id}/download` : null);
@@ -82,17 +87,17 @@ export class ExportsService {
   async download(user: AuthUser, id: string, res: Response): Promise<StreamableFile> {
     const row = await this.exportsDao.findById(id);
     if (!row) {
-      throw new NotFoundException('EXPORT_NOT_FOUND');
+      throw new NotFoundException(ERROR_CODES.EXPORT_NOT_FOUND);
     }
     this.assertAccess(user, row.createdByUserId);
     if (row.status !== 'COMPLETED' || !row.fileName) {
-      throw new BadRequestException('EXPORT_NOT_READY');
+      throw new BadRequestException(ERROR_CODES.EXPORT_NOT_READY);
     }
 
     const exportsDir = this.configService.get<string>('EXPORTS_DIR') ?? './exports';
     const filePath = join(exportsDir, row.fileName);
     if (!existsSync(filePath)) {
-      throw new NotFoundException('EXPORT_FILE_MISSING');
+      throw new NotFoundException(ERROR_CODES.EXPORT_FILE_MISSING);
     }
 
     await this.exportsDao.incrementDownload(id);
@@ -103,7 +108,7 @@ export class ExportsService {
 
   private assertAccess(user: AuthUser, ownerId: string): void {
     if (user.role !== 'ADMIN' && user.id !== ownerId) {
-      throw new NotFoundException('EXPORT_NOT_FOUND');
+      throw new NotFoundException(ERROR_CODES.EXPORT_NOT_FOUND);
     }
   }
 }

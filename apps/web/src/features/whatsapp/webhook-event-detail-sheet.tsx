@@ -99,7 +99,7 @@ function WebhookEventDetailView({ event }: { event: WebhookEventDetailDto }) {
         <DetailRow label={t('webhookEvents.eventType')} value={event.eventType} mono />
         <DetailRow label={t('webhookEvents.provider')} value={event.provider} />
         <DetailRow label={t('webhookEvents.signatureValid')} value={t(`yesNo.${event.signatureValid}`)} />
-        <DetailRow label={t('webhookEvents.status')} value={t(`webhookEvents.status.${event.processingStatus}`)} />
+        <DetailRow label={t('common.status')} value={t(`webhookEvents.status.${event.processingStatus}`)} />
         <DetailRow label={t('webhookEvents.attempts')} value={String(event.processingAttempts)} />
         <DetailRow label={t('webhookEvents.receivedAt')} value={formatDateTime(event.receivedAt)} />
         <DetailRow label={t('webhookEvents.processedAt')} value={formatDateTime(event.processedAt)} />

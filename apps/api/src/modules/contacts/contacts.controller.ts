@@ -98,7 +98,7 @@ export class ContactsController {
   }
 
   @Get('export')
-  @Roles('ADMIN', 'MANAGER', 'AGENT')
+  @Roles('ADMIN', 'MANAGER')
   async export(
     @Query(new ZodValidationPipe(contactQuerySchema)) query: ContactQuery,
     @CurrentUser() actor: AuthUser,

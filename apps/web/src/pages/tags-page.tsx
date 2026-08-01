@@ -32,6 +32,7 @@ import {
 import { MoreHorizontal, Plus, Search, Tag, X } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { useDebouncedValue } from '../hooks/use-debounce';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
@@ -84,12 +85,15 @@ export function TagsPage() {
         title={t('tags.title')}
         description={t('tags.description')}
         actions={
-          isManagerOrAdmin ? (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              {t('tags.create')}
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="tags" />
+            {isManagerOrAdmin ? (
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                {t('tags.create')}
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

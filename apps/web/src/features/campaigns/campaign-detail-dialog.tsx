@@ -264,7 +264,7 @@ export function CampaignDetailDialog({ campaign, onOpenChange, onChanged }: Deta
             <TableHeader>
               <TableRow>
                 <TableHead>{t('campaigns.phone')}</TableHead>
-                <TableHead>{t('campaigns.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('campaigns.sentAt')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('campaigns.failure')}</TableHead>
               </TableRow>

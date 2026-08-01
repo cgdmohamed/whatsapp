@@ -14,13 +14,13 @@ export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
-  ({ className, icon: Icon = AlertTriangle, title, description, actionLabel, onAction, ...props }, ref) => (
+  ({ className, icon: Icon = AlertTriangle, title, description, actionLabel, onAction, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-10 text-center', className)}
+      className={cn('flex animate-fade-in flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-10 text-center group', className)}
       {...props}
     >
-      <div className="rounded-full bg-muted p-3">
+      <div className="rounded-full bg-muted p-3 transition-transform duration-200 group-hover:scale-105">
         <Icon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
       </div>
       <h3 className="mt-2 text-base font-semibold">{title}</h3>
@@ -30,6 +30,7 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
           {actionLabel}
         </Button>
       ) : null}
+      {children}
     </div>
   ),
 );
@@ -47,7 +48,7 @@ const ErrorState = React.forwardRef<HTMLDivElement, ErrorStateProps>(
   ({ className, title, description, retryLabel, onRetry, loading, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-10 text-center', className)}
+      className={cn('flex animate-fade-in flex-col items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-10 text-center', className)}
       {...props}
     >
       <div className="rounded-full bg-destructive/10 p-3">

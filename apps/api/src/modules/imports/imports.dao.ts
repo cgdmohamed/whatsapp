@@ -74,6 +74,10 @@ export class ImportsDao {
     return this.db.query.importJobs.findFirst({ where: eq(importJobs.id, id) });
   }
 
+  delete(id: string): Promise<void> {
+    return this.db.delete(importJobs).where(eq(importJobs.id, id)).then(() => undefined);
+  }
+
   insert(values: Omit<typeof importJobs.$inferInsert, 'id'>): Promise<ImportJobRow[]> {
     return this.db.insert(importJobs).values(values).returning();
   }

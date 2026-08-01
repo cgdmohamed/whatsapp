@@ -21,6 +21,7 @@ import { AUDIT_ACTIONS, IMPORTABLE_FIELDS } from '@wa/shared';
 import { IMPORTS_QUEUE } from '../../common/queue/queue.module';
 import { ERROR_CODES } from '../../common/errors';
 import { AuditService } from '../../common/audit/audit.module';
+import { SettingsService } from '../settings/settings.service';
 import type { AuthUser } from '../auth/auth.types';
 import type { ImportJobRow } from '../../db/schema';
 import { ImportsDao, toImportJobDto, toImportRowDto } from './imports.dao';
@@ -36,7 +37,7 @@ export interface UploadedFileLike {
   mimetype: string;
 }
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const HARD_UPLOAD_CAP_MB = 50;
 
 @Injectable()
 export class ImportsService {
@@ -44,6 +45,7 @@ export class ImportsService {
     private readonly importsDao: ImportsDao,
     private readonly storage: ImportStorage,
     private readonly auditService: AuditService,
+    private readonly settingsService: SettingsService,
     @Inject(IMPORTS_QUEUE) private readonly importsQueue: Queue,
   ) {}
 
@@ -52,13 +54,17 @@ export class ImportsService {
     if (!file || !file.buffer || file.size === 0) {
       throw new BadRequestException(ERROR_CODES.IMPORT_EMPTY_FILE);
     }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      throw new BadRequestException(ERROR_CODES.IMPORT_EMPTY_FILE);
+    const maxBytes = await this.maxUploadBytes();
+    if (file.size > maxBytes) {
+      throw new BadRequestException(ERROR_CODES.IMPORT_FILE_TOO_LARGE);
     }
 
     let fileType: 'csv' | 'xlsx';
     try {
       fileType = fileTypeFromFilename(file.originalname);
+      if (fileType === 'csv' && file.buffer.length >= 2 && file.buffer[0] === 0x50 && file.buffer[1] === 0x4b) {
+        throw new Error('BINARY_FILE_WITH_CSV_EXTENSION');
+      }
     } catch {
       throw new BadRequestException(ERROR_CODES.IMPORT_FILE_TYPE_UNSUPPORTED);
     }
@@ -89,7 +95,13 @@ export class ImportsService {
       throw new BadRequestException(ERROR_CODES.INVALID_OPERATION);
     }
 
-    this.storage.save(job.id, file.buffer);
+    try {
+      this.storage.save(job.id, file.buffer);
+    } catch {
+      this.storage.remove(job.id);
+      await this.importsDao.delete(job.id);
+      throw new BadRequestException(ERROR_CODES.INVALID_OPERATION);
+    }
     await this.auditService.record({
       actorUserId: actor.id,
       action: AUDIT_ACTIONS.IMPORT_UPLOAD,
@@ -175,16 +187,24 @@ export class ImportsService {
     }
 
     await this.importsDao.update(jobId, { status: 'VALIDATING' });
-    await this.importsQueue.add(
-      'process-import',
-      { jobId },
-      {
-        attempts: 2,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: 200,
-        removeOnFail: 200,
-      },
-    );
+    try {
+      await this.importsQueue.add(
+        'process-import',
+        { jobId },
+        {
+          jobId: `import-${jobId}`,
+          attempts: 2,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: 200,
+          removeOnFail: 200,
+        },
+      );
+    } catch (error) {
+      // Enqueue failed (e.g., Redis unavailable): revert to CONFIGURED so the
+      // operator can retry instead of being stuck in VALIDATING forever.
+      await this.importsDao.update(jobId, { status: 'CONFIGURED' });
+      throw error;
+    }
 
     await this.auditService.record({
       actorUserId: actor.id,
@@ -231,5 +251,13 @@ export class ImportsService {
       throw new NotFoundException(ERROR_CODES.NOT_FOUND);
     }
     return job;
+  }
+
+  private async maxUploadBytes(): Promise<number> {
+    const settings = await this.settingsService.getAll();
+    const configuredMb = Number.isFinite(settings.maxImportFileSizeMb) && settings.maxImportFileSizeMb > 0
+      ? settings.maxImportFileSizeMb
+      : 20;
+    return Math.min(configuredMb, HARD_UPLOAD_CAP_MB) * 1024 * 1024;
   }
 }

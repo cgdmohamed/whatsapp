@@ -17,6 +17,7 @@
     "@wa/config": "workspace:*",
     "@wa/shared": "workspace:*",
     "@wa/ui": "workspace:*",
+    "dompurify": "^3.4.12",
     "i18next": "^23.16.8",
     "i18next-browser-languagedetector": "^8.0.2",
     "lucide-react": "^0.469.0",
@@ -28,6 +29,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.2.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

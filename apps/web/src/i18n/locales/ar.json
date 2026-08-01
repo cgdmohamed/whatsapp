@@ -16,7 +16,18 @@
     "whatsapp": "واتساب",
     "integrationLogs": "سجلات التكامل",
     "profile": "الملف الشخصي",
-    "home": "الرئيسية"
+    "home": "الرئيسية",
+    "help": "مركز المساعدة",
+    "helpAdmin": "مركز المساعدة",
+    "emailSettings": "البريد",
+    "section": {
+      "main": "الرئيسية",
+      "messaging": "الرسائل",
+      "audience": "الجمهور",
+      "manage": "الإدارة",
+      "admin": "الإشراف",
+      "account": "الحساب"
+    }
   },
   "common": {
     "appName": "مدير حملات واتساب",
@@ -55,7 +66,14 @@
     "open": "فتح",
     "add": "إضافة",
     "remove": "إزالة",
-    "none": "لا شيء"
+    "none": "لا شيء",
+    "status": "الحالة",
+    "category": "التصنيف",
+    "source": "المصدر",
+    "priority": "الأولوية",
+    "inbox": "البريد الوارد",
+    "darkMode": "التبديل إلى الوضع الداكن",
+    "lightMode": "التبديل إلى الوضع الفاتح"
   },
   "roles": {
     "ADMIN": "مدير النظام",
@@ -72,8 +90,28 @@
     "loginSubtitle": "أدخل بيانات الاعتماد للوصول إلى المنصة",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
     "signIn": "تسجيل الدخول",
     "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "forgotPasswordTitle": "إعادة تعيين كلمة المرور",
+    "forgotPasswordSubtitle": "أدخل بريدك الإلكتروني وسنرسل تعليمات الاسترداد إذا وُجد حساب.",
+    "forgotPasswordSent": "إذا وُجد حساب مؤهل لهذا البريد، سيتم إرسال تعليمات استرداد كلمة المرور.",
+    "forgotPasswordSubmit": "إرسال بريد الاسترداد",
+    "backToLogin": "العودة لتسجيل الدخول",
+    "resetPasswordTitle": "تعيين كلمة مرور جديدة",
+    "resetPasswordSubtitle": "اختر كلمة مرور قوية لحسابك.",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين",
+    "resetPasswordSuccess": "تمت إعادة تعيين كلمة مرورك. يمكنك الآن تسجيل الدخول.",
+    "resetPasswordInvalid": "رابط إعادة التعيين هذا غير صالح أو منتهي الصلاحية.",
+    "resetPasswordUsed": "تم استخدام رابط إعادة التعيين هذا بالفعل.",
+    "resetTokenValidating": "جارٍ التحقق من الرابط…",
+    "resetPasswordButton": "إعادة تعيين كلمة المرور",
+    "requestNewResetLink": "طلب رابط جديد",
+    "goToLogin": "الانتقال لتسجيل الدخول",
     "loginBlocked": "محاولات فاشلة كثيرة. حاول لاحقًا.",
     "changePasswordTitle": "تغيير كلمة المرور",
     "changePasswordDescription": "استخدم كلمة مرور قوية تتكون من 8 أحرف على الأقل وتحتوي على حروف وأرقام.",
@@ -233,7 +271,7 @@
     "name": "الاسم",
     "language": "اللغة",
     "category": "التصنيف",
-    "status": "الحالة",
+    "statusColumn": "الحالة",
     "updated": "آخر تحديث",
     "preview": "معاينة",
     "blocked": "محظور",
@@ -481,7 +519,12 @@
     "serviceWindow": "نافذة الخدمة",
     "noWindow": "لا توجد نافذة نشطة",
     "recentCampaigns": "الحملات الأخيرة",
-    "selectConversation": "اختر محادثة للبدء"
+    "selectConversation": "اختر محادثة للبدء",
+    "templates": "القوالب",
+    "templatePicker": "اختر قالبًا",
+    "templatePickerHint": "عاين الرسالة قبل الإدراج. لا يُرسل شيء تلقائيًا.",
+    "selectTemplate": "اختر قالبًا لمعاينته.",
+    "useTemplate": "استخدام القالب"
   },
   "webhookEvents": {
     "receivedAt": "تاريخ الاستلام",
@@ -1003,5 +1046,332 @@
       "unread": "غير مقروءة",
       "unassigned": "غير مسندة"
     }
+  },
+  "help": {
+    "title": "مركز المساعدة",
+    "description": "أدلة واستكشاف أخطاء وإجابات لكل أقسام المنصة.",
+    "searchPlaceholder": "ابحث في المقالات…",
+    "searchLabel": "البحث في المساعدة",
+    "search": "بحث",
+    "resultsFor": "نتائج البحث عن «{{query}}»",
+    "noResults": "لا توجد مقالات مطابقة لبحثك. جرّب كلمات مختلفة أو تصفح التصنيفات بالأسفل.",
+    "noResultsQuery": "لا نتائج",
+    "allArticles": "كل المقالات",
+    "categories": "التصنيفات",
+    "featured": "أدلة مميزة",
+    "recentlyUpdated": "حديثًا",
+    "relatedArticles": "مقالات ذات صلة",
+    "articleType": {
+      "OVERVIEW": "نظرة عامة",
+      "STEP_BY_STEP": "خطوة بخطوة",
+      "FAQ": "أسئلة شائعة",
+      "TROUBLESHOOTING": "استكشاف الأخطاء",
+      "POLICY": "سياسة",
+      "REFERENCE": "مرجع"
+    },
+    "difficulty": {
+      "BASIC": "أساسي",
+      "INTERMEDIATE": "متوسط",
+      "ADVANCED": "متقدم"
+    },
+    "readingMinutes": "{{count}} دقائق قراءة",
+    "lastUpdated": "آخر تحديث {{date}}",
+    "featuredLabel": "مميز",
+    "contextHelpTitle": "دليل هذا القسم",
+    "contextHelpAria": "فتح دليل هذا القسم",
+    "helpAria": "فتح مركز المساعدة",
+    "openFullArticle": "فتح المقال كاملًا",
+    "openHelpCenter": "فتح مركز المساعدة",
+    "whoCanUse": "من يمكنه استخدامه",
+    "mainActions": "الإجراءات الرئيسية",
+    "steps": "الخطوات",
+    "warnings": "تحذيرات مهمة",
+    "commonMistakes": "أخطاء شائعة",
+    "permission": "الصلاحية المطلوبة",
+    "wasHelpful": "هل ساعدك هذا الدليل؟",
+    "yes": "نعم",
+    "no": "لا",
+    "thanksForFeedback": "شكرًا على ملاحظاتك.",
+    "commentPlaceholder": "تعليق اختياري…",
+    "submitFeedback": "إرسال",
+    "breadcrumbHome": "مركز المساعدة",
+    "prevArticle": "السابق",
+    "nextArticle": "التالي",
+    "backToCategory": "كل المقالات في {{category}}",
+    "roleRequired": "الأدوار: {{roles}}",
+    "allRoles": "كل الأدوار"
+  },
+  "helpAdmin": {
+    "title": "مركز المساعدة",
+    "description": "إدارة التصنيفات والمقالات والملاحظات والاستخدام.",
+    "tabs": {
+      "categories": "التصنيفات",
+      "articles": "المقالات",
+      "feedback": "الملاحظات",
+      "analytics": "التحليلات"
+    },
+    "newCategory": "تصنيف جديد",
+    "newArticle": "مقال جديد",
+    "edit": "تعديل",
+    "save": "حفظ",
+    "saveDraft": "حفظ كمسودة",
+    "cancel": "إلغاء",
+    "publish": "نشر",
+    "unpublish": "إلغاء النشر",
+    "duplicate": "تكرار",
+    "archive": "أرشفة",
+    "versions": "السجل",
+    "restoreVersion": "استعادة كمسودة",
+    "status": {
+      "DRAFT": "مسودة",
+      "PUBLISHED": "منشور",
+      "ARCHIVED": "مؤرشف"
+    },
+    "articleType": "النوع",
+    "difficulty": "الصعوبة",
+    "category": "التصنيف",
+    "slug": "المعرف",
+    "titleAr": "العنوان بالعربية",
+    "titleEn": "العنوان بالإنجليزية",
+    "summaryAr": "الملخص بالعربية",
+    "summaryEn": "الملخص بالإنجليزية",
+    "contentAr": "المحتوى بالعربية",
+    "contentEn": "المحتوى بالإنجليزية",
+    "contentHint": "استخدم HTML مع h2/h3 وp وol/ul وجداول ومربعات callout: class=\"note|warning|tip|important|permission|mistake|success\".",
+    "allowedRoles": "الأدوار المسموحة",
+    "routePatterns": "أنماط المسارات",
+    "routePatternsHint": "مسار في كل سطر، مثل /campaigns أو /campaigns/:id",
+    "featureKey": "مفتاح القسم",
+    "keywords": "الكلمات المفتاحية",
+    "keywordsHint": "مفصولة بفواصل",
+    "readingMinutes": "وقت القراءة (دقائق)",
+    "featured": "مميز",
+    "contextual": "الظهور في المساعدة السياقية",
+    "sortOrder": "الترتيب",
+    "changeSummary": "ملخص التغيير",
+    "previewAr": "معاينة (عربي)",
+    "previewEn": "معاينة (إنجليزي)",
+    "noArticles": "لا توجد مقالات بعد. أنشئ أول مقال.",
+    "noCategories": "لا توجد تصنيفات بعد.",
+    "confirmArchive": "أرشفة هذا المقال؟",
+    "emptyFeedback": "لا توجد ملاحظات بعد.",
+    "helpfulPercent": "نسبة الإفادة",
+    "views": "المشاهدات",
+    "totalViews": "إجمالي المشاهدات",
+    "totalFeedback": "إجمالي الملاحظات",
+    "searchQueries": "عمليات البحث",
+    "noResultQueries": "عمليات بحث بلا نتائج",
+    "topArticles": "الأكثر مشاهدة",
+    "worstArticles": "الأقل إفادة",
+    "recentNoResultSearches": "عمليات البحث الأخيرة بلا نتائج",
+    "noVersions": "لا يوجد سجل إصدارات بعد.",
+    "versionChangeSummary": "الملخص",
+    "versionDate": "التوقيت",
+    "language": "اللغة"
+  },
+  "onboarding": {
+    "title": "ابدأ هنا",
+    "description": "أكمل هذه الخطوات لتجهيز المنصة لفريقك.",
+    "hide": "إخفاء القائمة",
+    "restore": "إظهار القائمة",
+    "progress": "{{done}} من {{total}} مكتملة",
+    "allDone": "تم كل شيء — أكملت قائمة الإعداد!",
+    "toggle": "تمييز كمكتملة",
+    "toggleOff": "تمييز كغير مكتملة",
+    "step": {
+      "company-settings": {
+        "label": "إكمال إعدادات الشركة",
+        "description": "أدخل بيانات مؤسستك في الإعدادات."
+      },
+      "meta-credentials": {
+        "label": "إضافة بيانات Meta",
+        "description": "أدخل App ID وApp Secret وVerify Token."
+      },
+      "test-connection": {
+        "label": "اختبار اتصال واتساب",
+        "description": "تحقق من الاتصال بـ Meta من صفحة واتساب."
+      },
+      "configure-webhook": {
+        "label": "إعداد الويب هوك والتحقق منه",
+        "description": "اربط ويب هوك Meta بالمنصة واشترك في الرسائل."
+      },
+      "sync-phone-number": {
+        "label": "مزامنة رقم الهاتف",
+        "description": "تأكد من أن رقم الإرسال نشط."
+      },
+      "sync-templates": {
+        "label": "مزامنة القوالب",
+        "description": "اجلب قوالب الرسائل المعتمدة من Meta."
+      },
+      "import-contacts": {
+        "label": "استيراد جهات الاتصال",
+        "description": "أضف جمهورك عبر CSV أو Excel."
+      },
+      "review-consent": {
+        "label": "مراجعة حالة الموافقة",
+        "description": "تأكد من تسجيل الاشتراك قبل الحملات."
+      },
+      "create-test-list": {
+        "label": "إنشاء قائمة تجريبية",
+        "description": "ابنِ قائمة صغيرة لاختبار الحملات."
+      },
+      "send-test-campaign": {
+        "label": "إرسال حملة تجريبية",
+        "description": "أطلق حملة للتحقق من سير العمل كاملًا."
+      },
+      "add-team-users": {
+        "label": "إضافة مستخدمي الفريق",
+        "description": "أنشئ الحسابات وحدد الأدوار."
+      },
+      "review-security": {
+        "label": "مراجعة إعدادات الأمان",
+        "description": "تحقق من الأسرار والتشفير وسجلات التدقيق."
+      }
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "empty": "لا توجد إشعارات.",
+    "markAllRead": "تحديد الكل كمقروء",
+    "markRead": "تحديد كمقروء",
+    "dismiss": "إغلاق",
+    "open": "فتح",
+    "unreadCount": "{{count}} غير مقروء"
+  },
+  "mailSettings": {
+    "title": "إعدادات البريد",
+    "description": "اضبط البريد الإلكتروني للنظام واختبار SMTP والملخص اليومي.",
+    "status": "حالة البريد",
+    "enabled": "مفعّل",
+    "disabled": "معطّل",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "smtp": "إعدادات SMTP",
+    "host": "خادم SMTP",
+    "port": "منفذ SMTP",
+    "secure": "استخدام TLS (منفذ آمن)",
+    "username": "اسم مستخدم SMTP",
+    "password": "كلمة مرور SMTP",
+    "passwordPlaceholder": "اتركه فارغًا للحفاظ على كلمة المرور الحالية",
+    "fromEmail": "البريد المرسل",
+    "fromName": "الاسم المرسل",
+    "replyTo": "الرد على",
+    "save": "حفظ الإعدادات",
+    "testConnection": "اختبار اتصال SMTP",
+    "sendTestEmail": "إرسال بريد اختبار",
+    "testEmailTo": "بريد المستلم",
+    "connectionTestOk": "نجح اختبار اتصال SMTP",
+    "connectionTestFailed": "فشل اختبار الاتصال: {{error}}",
+    "lastTestAt": "آخر اختبار اتصال: {{date}}",
+    "lastSentAt": "آخر بريد ناجح: {{date}}",
+    "lastFailedAt": "آخر بريد فاشل: {{date}}",
+    "hasPassword": "كلمة المرور مضبوطة",
+    "noPassword": "لا توجد كلمة مرور SMTP",
+    "queueStatus": "قائمة الانتظار",
+    "failedLogs": "مهام البريد الفاشلة",
+    "noFailedLogs": "لا توجد مهام فاشلة.",
+    "retry": "إعادة المحاولة",
+    "dailySummary": "الملخص اليومي للإدارة",
+    "summaryEnabled": "إرسال الملخص اليومي",
+    "summaryTime": "وقت التسليم (Africa/Cairo)",
+    "summaryRecipients": "المستلمون (بريد في كل سطر)",
+    "saveSummary": "حفظ إعدادات الملخص",
+    "sendTest": "إرسال بريد اختبار",
+    "recipient": "بريد المستلم",
+    "language": "اللغة",
+    "testSent": "تمت جدولة بريد الاختبار.",
+    "testFailed": "تعذرت جدولة بريد الاختبار. تحقق من إعدادات SMTP وتفعيل البريد."
+  },
+  "preview": {
+    "notice": "المعاينة تقريبية وقد تختلف حسب إصدار واتساب والجهاز.",
+    "deviceTitle": "معاينة الرسالة",
+    "previewOnly": "معاينة فقط — لم يُرسل شيء.",
+    "mode": {
+      "mobile": "الجوال",
+      "compact": "مدمج",
+      "full": "بعرض كامل"
+    },
+    "theme": {
+      "light": "فاتح",
+      "dark": "داكن"
+    },
+    "direction": {
+      "ar": "عربي RTL",
+      "en": "إنجليزي LTR"
+    },
+    "width": {
+      "narrow": "ضيق",
+      "wide": "واسع"
+    },
+    "status": {
+      "PENDING": "قيد الإرسال",
+      "SENT": "أُرسلت",
+      "DELIVERED": "تم التسليم",
+      "READ": "تمت القراءة",
+      "FAILED": "فشلت"
+    },
+    "missingVariable": "متغير مطلوب ناقص",
+    "missingVariableDescription": "هذا المتغير بدون قيمة. اربط حقل مصدر أو أدخل قيمة احتياطية قبل الإرسال.",
+    "buttons": "الأزرار",
+    "inspector": {
+      "title": "المتغيرات",
+      "component": "المكوّن",
+      "position": "الموضع",
+      "placeholder": "الرمز",
+      "source": "المصدر",
+      "resolvedValue": "القيمة المحلولة",
+      "fallback": "الاحتياطية",
+      "status": {
+        "RESOLVED": "محلولة",
+        "FALLBACK_USED": "استُخدمت الاحتياطية",
+        "MISSING": "ناقصة",
+        "INVALID": "غير صالحة",
+        "TOO_LONG": "طويلة جدًا"
+      }
+    },
+    "sample": {
+      "label": "قيم نموذجية",
+      "generate": "توليد قيم",
+      "clear": "مسح",
+      "reset": "إعادة للمثال"
+    },
+    "recipient": {
+      "title": "معاينة المستلمين",
+      "previous": "السابق",
+      "next": "التالي",
+      "search": "ابحث عن مستلم…",
+      "random": "عشوائي",
+      "eligible": "أول المؤهلين",
+      "ineligible": "أول غير المؤهلين",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "eligibility": "الأهلية",
+      "eligible": "مؤهل",
+      "ineligible": "غير مؤهل",
+      "consent": "الموافقة",
+      "suppression": "الاستبعاد",
+      "variableStatus": "حل المتغيرات"
+    },
+    "warnings": {
+      "title": "تحذيرات المعاينة",
+      "tooLongHeader": "الرأس طويل جدًا.",
+      "tooLongBody": "النص الأساسي طويل جدًا.",
+      "tooManyLines": "الرسالة تحتوي على أسطر كثيرة.",
+      "longButton": "نص أحد الأزرار طويل.",
+      "longUrl": "الرابط الديناميكي طويل جدًا.",
+      "emptyFooter": "التذييل فارغ.",
+      "missingMedia": "لا توجد وسائط نموذجية للرأس.",
+      "longValue": "قيمة أحد المتغيرات طويلة جدًا.",
+      "mixedDirection": "الرسالة تخلط بين العربية والإنجليزية."
+    },
+    "templateStatus": {
+      "APPROVED": "معتمد",
+      "PENDING": "قيد المراجعة",
+      "REJECTED": "مرفوض",
+      "PAUSED": "متوقف مؤقتًا",
+      "DISABLED": "معطّل",
+      "DRAFT": "مسودة"
+    },
+    "notApprovedBlocker": "هذا القالب غير معتمد. الإرسال الفعلي معطّل؛ تبقى المعاينة متاحة."
   }
 }

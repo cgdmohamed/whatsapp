@@ -123,7 +123,7 @@ describe('campaigns', () => {
     let templatesDao: { findById: jest.Mock };
     let phoneNumbersDao: { findById: jest.Mock };
     let whatsappService: { buildClient: jest.Mock };
-    let messagesDao: { insert: jest.Mock; aggregateCampaignMetrics: jest.Mock };
+    let messagesDao: { insert: jest.Mock; aggregateCampaignMetrics: jest.Mock; findByCampaignRecipientId: jest.Mock };
     let dispatchService: { enqueueRecipientSend: jest.Mock };
 
     function makeJob(overrides: Record<string, unknown> = {}): any {
@@ -149,7 +149,7 @@ describe('campaigns', () => {
       templatesDao = { findById: jest.fn() };
       phoneNumbersDao = { findById: jest.fn() };
       whatsappService = { buildClient: jest.fn() };
-      messagesDao = { insert: jest.fn(), aggregateCampaignMetrics: jest.fn() };
+      messagesDao = { insert: jest.fn(), aggregateCampaignMetrics: jest.fn(), findByCampaignRecipientId: jest.fn().mockResolvedValue(undefined) };
       dispatchService = { enqueueRecipientSend: jest.fn() };
       processor = new CampaignProcessor(
         campaignsDao as never,
@@ -159,6 +159,7 @@ describe('campaigns', () => {
         whatsappService as never,
         messagesDao as never,
         dispatchService as never,
+        { notifyTargets: jest.fn().mockResolvedValue(undefined) } as never,
       );
     });
 
@@ -217,13 +218,48 @@ describe('campaigns', () => {
       expect(whatsappService.buildClient).not.toHaveBeenCalled();
     });
 
-    it('reschedules (moveToDelayed) when the campaign is paused', async () => {
+    it('reschedules (moveToDelayed) when the campaign is paused and signals the worker', async () => {
       recipientsDao.findById.mockResolvedValue(recipient());
       campaignsDao.findById.mockResolvedValue(campaign({ status: 'PAUSED' }));
       const job = makeJob();
-      await processor.sendRecipientMessage(job);
+      await expect(processor.sendRecipientMessage(job)).rejects.toBeTruthy();
       expect(job.moveToDelayed).toHaveBeenCalled();
       expect(whatsappService.buildClient).not.toHaveBeenCalled();
+    });
+
+    it('skips a duplicate send when a message row already exists for the recipient', async () => {
+      recipientsDao.findById.mockResolvedValue(recipient());
+      campaignsDao.findById.mockResolvedValue(campaign());
+      templatesDao.findById.mockResolvedValue({ id: 'tmpl-1', status: 'APPROVED', name: 'welcome', language: 'en_US', blockedAt: null });
+      phoneNumbersDao.findById.mockResolvedValue({ id: 'pn-1', phoneNumberId: 'meta-pn' });
+      messagesDao.findByCampaignRecipientId.mockResolvedValue({ id: 'm1', metaMessageId: 'wamid-1', sentAt: new Date() });
+
+      await processor.sendRecipientMessage(makeJob());
+
+      expect(whatsappService.buildClient).not.toHaveBeenCalled();
+      expect(messagesDao.insert).not.toHaveBeenCalled();
+      expect(recipientsDao.update).toHaveBeenCalledWith(
+        'r1',
+        expect.objectContaining({ status: 'SENT', metaMessageId: 'wamid-1' }),
+      );
+    });
+
+    it('marks FAILED on the final attempt for a generic (non-Meta) error', async () => {
+      recipientsDao.findById.mockResolvedValue(recipient());
+      campaignsDao.findById.mockResolvedValue(campaign());
+      templatesDao.findById.mockResolvedValue({ id: 'tmpl-1', status: 'APPROVED', name: 'welcome', language: 'en_US', blockedAt: null });
+      phoneNumbersDao.findById.mockResolvedValue({ id: 'pn-1', phoneNumberId: 'meta-pn' });
+      whatsappService.buildClient.mockResolvedValue({
+        sendTemplateMessage: jest.fn().mockRejectedValue(new Error('boom')),
+      });
+
+      await processor.sendRecipientMessage(makeJob({ attemptsMade: 4 }));
+
+      expect(recipientsDao.update).toHaveBeenCalledWith(
+        'r1',
+        expect.objectContaining({ status: 'FAILED', failureCode: 'SEND_ERROR' }),
+      );
+      expect(messagesDao.insert).toHaveBeenCalledWith(expect.objectContaining({ status: 'FAILED' }));
     });
 
     it('marks the recipient cancelled when the campaign is cancelled', async () => {
@@ -276,6 +312,59 @@ describe('campaigns', () => {
       expect(recipientsDao.update).toHaveBeenCalledWith(
         'r1',
         expect.objectContaining({ status: 'FAILED', failureCode: 'TEMPLATE_NOT_APPROVED' }),
+      );
+    });
+  });
+
+  describe('CampaignProcessor.buildRecipients (idempotency on retry)', () => {
+    let processor: CampaignProcessor;
+    let campaignsDao: { findById: jest.Mock; update: jest.Mock };
+    let recipientsDao: { findEligibleForCampaign: jest.Mock; countByStatuses: jest.Mock; setQueueJobId: jest.Mock };
+    let dispatchService: { enqueueRecipientSend: jest.Mock };
+
+    beforeEach(() => {
+      campaignsDao = { findById: jest.fn(), update: jest.fn() };
+      recipientsDao = {
+        findEligibleForCampaign: jest.fn().mockResolvedValue([]),
+        countByStatuses: jest.fn().mockResolvedValue(0),
+        setQueueJobId: jest.fn(),
+      };
+      dispatchService = { enqueueRecipientSend: jest.fn().mockResolvedValue('job-1') };
+      processor = new CampaignProcessor(
+        campaignsDao as never,
+        recipientsDao as never,
+        { findById: jest.fn() } as never,
+        { findById: jest.fn() } as never,
+        { buildClient: jest.fn() } as never,
+        { insert: jest.fn() } as never,
+        dispatchService as never,
+        { notifyTargets: jest.fn().mockResolvedValue(undefined) } as never,
+      );
+    });
+
+    it('skips rebuilding and does not complete the campaign when recipients are already queued', async () => {
+      campaignsDao.findById.mockResolvedValue({ id: 'camp-1', status: 'QUEUING', queuedRecipients: 0 });
+      recipientsDao.countByStatuses.mockResolvedValue(3);
+
+      await processor.buildRecipients({ data: { campaignId: 'camp-1' } } as never);
+
+      expect(recipientsDao.findEligibleForCampaign).not.toHaveBeenCalled();
+      expect(dispatchService.enqueueRecipientSend).not.toHaveBeenCalled();
+      expect(campaignsDao.update).toHaveBeenCalledWith(
+        'camp-1',
+        expect.objectContaining({ status: 'RUNNING', queuedRecipients: 3 }),
+      );
+    });
+
+    it('marks the campaign COMPLETED only when there are genuinely no eligible recipients', async () => {
+      campaignsDao.findById.mockResolvedValue({ id: 'camp-1', status: 'QUEUING', queuedRecipients: 0 });
+      recipientsDao.findEligibleForCampaign.mockResolvedValue([]);
+
+      await processor.buildRecipients({ data: { campaignId: 'camp-1' } } as never);
+
+      expect(campaignsDao.update).toHaveBeenCalledWith(
+        'camp-1',
+        expect.objectContaining({ status: 'COMPLETED', completedAt: expect.any(Date) }),
       );
     });
   });

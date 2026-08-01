@@ -61,7 +61,6 @@ export function toMediaFileDto(row: MediaFileRow): MediaFileDto {
     source: row.source,
     metaMediaId: row.metaMediaId ?? null,
     originalFilename: row.originalFilename ?? null,
-    storedFilename: row.storedFilename ?? null,
     contentType: row.contentType ?? null,
     sizeBytes: row.sizeBytes ?? null,
     sha256: row.sha256 ?? null,

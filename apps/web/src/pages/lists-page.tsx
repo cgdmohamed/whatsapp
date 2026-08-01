@@ -37,6 +37,7 @@ import {
 import { List, MoreHorizontal, Plus, Search, X } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { useDebouncedValue } from '../hooks/use-debounce';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
@@ -97,12 +98,15 @@ export function ListsPage() {
         title={t('lists.title')}
         description={t('lists.description')}
         actions={
-          isManagerOrAdmin ? (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              {t('lists.create')}
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="lists" />
+            {isManagerOrAdmin ? (
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                {t('lists.create')}
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

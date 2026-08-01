@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AudienceService } from './audience.service';
 import { CampaignDispatchService } from './campaign-dispatch.service';
 import { CampaignProcessor } from './campaign-processor';
@@ -19,7 +20,7 @@ import {
 import { MessagesDao } from '../inbox/messages.dao';
 
 @Module({
-  imports: [WhatsAppModule],
+  imports: [WhatsAppModule, NotificationsModule],
   controllers: [CampaignsController],
   providers: [
     CampaignsDao,

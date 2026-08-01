@@ -115,6 +115,20 @@ describe('ExportsService', () => {
     expect(exportsQueue.add).not.toHaveBeenCalled();
   });
 
+  it('allows only ADMIN to export the audit log', async () => {
+    await expect(
+      buildService().create(managerUser(), { type: 'audit-log', filters: null }),
+    ).rejects.toThrow('FORBIDDEN');
+    expect(exportsQueue.add).not.toHaveBeenCalled();
+
+    const row = exportJob({ type: 'audit-log' });
+    exportsDao.insert.mockResolvedValue(row);
+    await expect(
+      buildService().create(adminUser(), { type: 'audit-log', filters: null }),
+    ).resolves.toMatchObject({ type: 'audit-log' });
+    expect(exportsQueue.add).toHaveBeenCalledWith('export', { exportJobId: row.id }, expect.any(Object));
+  });
+
   it('creates an export job, enqueues it and records an audit entry', async () => {
     const row = exportJob({ type: 'contacts' });
     exportsDao.insert.mockResolvedValue(row);

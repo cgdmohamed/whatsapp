@@ -45,11 +45,13 @@ export class ReportsController {
   ) {}
 
   @Get('dashboard-summary')
+  @Roles('ADMIN', 'MANAGER')
   dashboardSummary(@Query(new ZodValidationPipe(dashboardQuerySchema)) query: DashboardQuery): Promise<DashboardSummaryDto> {
     return this.reportsService.dashboardSummary(query);
   }
 
   @Get('dashboard-trends')
+  @Roles('ADMIN', 'MANAGER')
   dashboardTrends(@Query(new ZodValidationPipe(dashboardQuerySchema)) query: DashboardQuery): Promise<DashboardTrendsDto> {
     return this.reportsService.dashboardTrends(query);
   }

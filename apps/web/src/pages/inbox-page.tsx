@@ -6,6 +6,7 @@ import { Button } from '@wa/ui';
 import { ChevronLeft } from 'lucide-react';
 
 import { useConversationDetail, useInboxEvents, useMarkRead } from '../features/inbox/api';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { Composer } from '../features/inbox/composer';
 import { ConversationHeader } from '../features/inbox/conversation-header';
 import { ConversationList } from '../features/inbox/conversation-list';
@@ -59,7 +60,8 @@ export function InboxPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-6.5rem)] flex-col gap-3">
+    <div className="relative flex h-[calc(100vh-6.5rem)] flex-col gap-3">
+      <ContextualHelpButton featureKey="inbox" className="absolute end-3 -top-1 z-10" />
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border bg-card">
         <div className={`h-full w-full shrink-0 flex-col border-e md:flex md:w-80 ${mobileView === 'list' ? 'flex' : 'hidden md:flex'}`}>
           <ConversationList selectedId={selectedId} onSelect={selectConversation} />

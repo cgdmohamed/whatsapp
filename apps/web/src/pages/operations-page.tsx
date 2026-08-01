@@ -204,7 +204,7 @@ export function OperationsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">{t('operations.inbox')}</CardTitle>
+                <CardTitle className="text-base">{t('common.inbox')}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2 text-sm">
                 <Badge variant="secondary">{t('operations.inbox.open')}: {data?.inbox.openConversations ?? 0}</Badge>

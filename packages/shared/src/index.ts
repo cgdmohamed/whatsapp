@@ -61,6 +61,23 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const validateResetTokenSchema = z.object({
+  token: z.string().trim().min(20).max(200),
+});
+export type ValidateResetTokenInput = z.infer<typeof validateResetTokenSchema>;
+
+export const resetPasswordInputSchema = z.object({
+  token: z.string().trim().min(20).max(200),
+  password: passwordSchema,
+  confirmPassword: passwordSchema,
+}).refine((value) => value.password === value.confirmPassword, { message: 'PASSWORD_MISMATCH', path: ['confirmPassword'] });
+export type ResetPasswordInput2 = z.infer<typeof resetPasswordInputSchema>;
+
 export const authResponseSchema = z.object({
   user: userSchema,
 });
@@ -1265,7 +1282,6 @@ export const mediaFileSchema = z.object({
   source: z.enum(MEDIA_FILE_SOURCES),
   metaMediaId: z.string().nullable(),
   originalFilename: z.string().nullable(),
-  storedFilename: z.string().nullable(),
   contentType: z.string().nullable(),
   sizeBytes: z.number().int().nonnegative().nullable(),
   sha256: z.string().nullable(),
@@ -1658,6 +1674,28 @@ export const AUDIT_ACTIONS = {
   EXPORT_FAILED: 'export.failed',
   OPERATIONS_RETRY: 'operations.retry_failed',
   OPERATIONS_DRAIN: 'operations.drain_failed',
+  HELP_CATEGORY_CREATE: 'help.category_create',
+  HELP_CATEGORY_UPDATE: 'help.category_update',
+  HELP_CATEGORY_ARCHIVE: 'help.category_archive',
+  HELP_CATEGORY_REORDER: 'help.category_reorder',
+  HELP_ARTICLE_CREATE: 'help.article_create',
+  HELP_ARTICLE_UPDATE: 'help.article_update',
+  HELP_ARTICLE_PUBLISH: 'help.article_publish',
+  HELP_ARTICLE_UNPUBLISH: 'help.article_unpublish',
+  HELP_ARTICLE_DUPLICATE: 'help.article_duplicate',
+  HELP_ARTICLE_ARCHIVE: 'help.article_archive',
+  HELP_ARTICLE_RESTORE: 'help.article_restore_version',
+  AUTH_FORGOT_PASSWORD: 'auth.forgot_password',
+  AUTH_PASSWORD_RESET: 'auth.password_reset',
+  AUTH_RESET_LINK_REQUESTED: 'auth.reset_link_requested',
+  AUTH_TEMP_PASSWORD_SET: 'auth.temp_password_set',
+  SMTP_SETTINGS_CHANGED: 'mail.smtp_settings_changed',
+  SMTP_CREDENTIALS_REPLACED: 'mail.smtp_credentials_replaced',
+  SMTP_CONNECTION_TESTED: 'mail.smtp_connection_tested',
+  EMAIL_TEST_REQUESTED: 'mail.test_requested',
+  EMAIL_MANUAL_RETRY: 'mail.manual_retry',
+  DAILY_SUMMARY_SETTINGS_CHANGED: 'mail.daily_summary_settings_changed',
+  NOTIFICATION_PREFERENCES_CHANGED: 'notifications.preferences_changed',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -2027,3 +2065,725 @@ export const queueOperationResultSchema = z.object({
   errors: z.array(z.string()),
 });
 export type QueueOperationResultDto = z.infer<typeof queueOperationResultSchema>;
+
+// ---------- Help Center ----------
+
+export const HELP_CATEGORY_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
+export type HelpCategoryStatus = (typeof HELP_CATEGORY_STATUSES)[number];
+
+export const HELP_ARTICLE_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
+export type HelpArticleStatus = (typeof HELP_ARTICLE_STATUSES)[number];
+
+export const HELP_ARTICLE_TYPES = ['OVERVIEW', 'STEP_BY_STEP', 'FAQ', 'TROUBLESHOOTING', 'POLICY', 'REFERENCE'] as const;
+export type HelpArticleType = (typeof HELP_ARTICLE_TYPES)[number];
+
+export const HELP_ARTICLE_DIFFICULTIES = ['BASIC', 'INTERMEDIATE', 'ADVANCED'] as const;
+export type HelpArticleDifficulty = (typeof HELP_ARTICLE_DIFFICULTIES)[number];
+
+export const HELP_LINK_RELATIONS = ['RELATED', 'NEXT', 'PREVIOUS', 'PREREQUISITE'] as const;
+export type HelpLinkRelation = (typeof HELP_LINK_RELATIONS)[number];
+
+export const HELP_LANGUAGES = ['ar', 'en'] as const;
+export type HelpLanguage = (typeof HELP_LANGUAGES)[number];
+
+// ---------- Email & Notifications ----------
+
+export const EMAIL_LOG_STATUSES = ['QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'CANCELLED'] as const;
+export type EmailLogStatus = (typeof EMAIL_LOG_STATUSES)[number];
+
+export const NOTIFICATION_SEVERITIES = ['INFO', 'SUCCESS', 'WARNING', 'ERROR'] as const;
+export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
+
+export const NOTIFICATION_TYPES = ['SECURITY', 'CAMPAIGN', 'INTEGRATION', 'IMPORT', 'SYSTEM'] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+// ---------- WhatsApp Message Preview ----------
+
+export const PREVIEW_HEADER_TYPES = ['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const;
+export type PreviewHeaderType = (typeof PREVIEW_HEADER_TYPES)[number];
+
+export const PREVIEW_BUTTON_TYPES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'] as const;
+export type PreviewButtonType = (typeof PREVIEW_BUTTON_TYPES)[number];
+
+export const PREVIEW_MESSAGE_STATUSES = ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED'] as const;
+export type PreviewMessageStatus = (typeof PREVIEW_MESSAGE_STATUSES)[number];
+
+export const PREVIEW_VARIABLE_STATUSES = ['RESOLVED', 'FALLBACK_USED', 'MISSING', 'INVALID', 'TOO_LONG'] as const;
+export type PreviewVariableStatus = (typeof PREVIEW_VARIABLE_STATUSES)[number];
+
+export const PREVIEW_VARIABLE_COMPONENTS = ['HEADER', 'BODY', 'BUTTON'] as const;
+export type PreviewVariableComponent = (typeof PREVIEW_VARIABLE_COMPONENTS)[number];
+
+export interface WhatsAppPreviewAccount {
+  displayName: string;
+  avatarUrl?: string;
+  phoneNumber?: string;
+  verified?: boolean;
+}
+
+export interface WhatsAppPreviewHeader {
+  type: PreviewHeaderType;
+  text?: string;
+  mediaUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSizeBytes?: number;
+}
+
+export interface WhatsAppPreviewButton {
+  type: PreviewButtonType;
+  text: string;
+  value?: string;
+}
+
+export interface WhatsAppPreviewVariable {
+  component: PreviewVariableComponent;
+  position: number;
+  placeholder: string;
+  resolvedValue?: string;
+  source?: string;
+  isMissing: boolean;
+  status: PreviewVariableStatus;
+}
+
+export interface WhatsAppPreviewModel {
+  account: WhatsAppPreviewAccount;
+  message: {
+    direction: 'OUTBOUND';
+    language: string;
+    header?: WhatsAppPreviewHeader;
+    body: string;
+    footer?: string;
+    buttons: WhatsAppPreviewButton[];
+    timestamp?: string;
+    status?: PreviewMessageStatus;
+  };
+  variables: WhatsAppPreviewVariable[];
+}
+
+export interface PreviewSampleValues {
+  [position: number]: string | undefined;
+}
+
+export interface PreviewResolveOptions {
+  fallbacks?: Record<number, string | undefined>;
+  maxLength?: number;
+}
+
+const SAMPLE_NAMES = ['محمد', 'Creative Code', '15 أغسطس', 'تصميم المواقع'];
+
+export function generatePreviewSampleValue(position: number): string {
+  return SAMPLE_NAMES[(position - 1) % SAMPLE_NAMES.length] ?? `Sample ${position}`;
+}
+
+export function maskPhoneNumber(phone: string, canView: boolean): string {
+  if (canView) return phone;
+  if (phone.length <= 4) return '••••';
+  return `${phone.slice(0, 2)}••••${phone.slice(-2)}`;
+}
+
+export function detectTextDirection(text: string): 'rtl' | 'ltr' {
+  const arabic = /[\u0600-\u06FF\u0750-\u077F]/;
+  const latin = /[A-Za-z0-9]/;
+  let ar = 0;
+  let en = 0;
+  for (const char of text) {
+    if (arabic.test(char)) ar += 1;
+    else if (latin.test(char)) en += 1;
+  }
+  if (ar > 0 && ar >= en) return 'rtl';
+  if (en > 0 && en > ar) return 'ltr';
+  return 'rtl';
+}
+
+export function applyVariableValuesToText(text: string, variables: WhatsAppPreviewVariable[]): string {
+  let result = text;
+  for (const variable of variables) {
+    const pattern = new RegExp(`\\{\\{${variable.position}\\}\\}`, 'g');
+    result = result.replace(pattern, variable.resolvedValue ?? variable.placeholder);
+  }
+  return result;
+}
+
+export function resolvePreviewVariables(
+  templateText: string,
+  values: PreviewSampleValues,
+  options: PreviewResolveOptions = {},
+): WhatsAppPreviewVariable[] {
+  const fallbacks = options.fallbacks ?? {};
+  const maxLength = options.maxLength ?? 100;
+  const placeholders = new Set<number>();
+  const regex = /\{\{(\d+)\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(templateText)) !== null) {
+    placeholders.add(Number(match[1]));
+  }
+  const variables: WhatsAppPreviewVariable[] = [...placeholders]
+    .sort((a, b) => a - b)
+    .map((position) => {
+      const raw = values[position] ?? '';
+      const fallback = fallbacks[position];
+      const trimmed = String(raw).trim();
+      let resolvedValue: string | undefined;
+      let status: PreviewVariableStatus = 'MISSING';
+      if (trimmed.length > 0) {
+        resolvedValue = trimmed;
+        status = trimmed.length > maxLength ? 'TOO_LONG' : 'RESOLVED';
+      } else if (fallback !== undefined && String(fallback).trim().length > 0) {
+        resolvedValue = String(fallback).trim();
+        status = 'FALLBACK_USED';
+      }
+      return {
+        component: 'BODY',
+        position,
+        placeholder: `{{${position}}}`,
+        resolvedValue,
+        source: resolvedValue ? 'sample' : undefined,
+        isMissing: resolvedValue === undefined,
+        status,
+      };
+    });
+  return variables;
+}
+
+export function mergeVariableMetadata(
+  variables: WhatsAppPreviewVariable[],
+  metadata: Array<{ component: PreviewVariableComponent; position: number; source?: string }>,
+): WhatsAppPreviewVariable[] {
+  const map = new Map(metadata.map((item) => [`${item.component}:${item.position}`, item]));
+  return variables.map((variable) => {
+    const meta = map.get(`${variable.component}:${variable.position}`);
+    return meta ? { ...variable, component: meta.component, source: meta.source ?? variable.source } : variable;
+  });
+}
+
+export interface PreviewUrlValidation {
+  valid: boolean;
+  missingVariables: number[];
+  invalidReason?: string;
+}
+
+export function validatePreviewDynamicUrl(url: string): PreviewUrlValidation {
+  if (!url || !url.trim()) {
+    return { valid: false, missingVariables: [], invalidReason: 'EMPTY' };
+  }
+  const missing: number[] = [];
+  const regex = /\{\{(\d+)\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(url)) !== null) {
+    missing.push(Number(match[1]));
+  }
+  if (missing.length > 0) {
+    return { valid: false, missingVariables: missing, invalidReason: 'MISSING_VARIABLES' };
+  }
+  const trimmed = url.trim();
+  if (!/^https?:\/\/[^\s]+$/i.test(trimmed)) {
+    return { valid: false, missingVariables: [], invalidReason: 'INVALID_URL' };
+  }
+  if (/javascript:|data:/i.test(trimmed)) {
+    return { valid: false, missingVariables: [], invalidReason: 'UNSAFE_URL' };
+  }
+  return { valid: true, missingVariables: [] };
+}
+
+export function resolvePreviewDynamicUrl(url: string, variables: WhatsAppPreviewVariable[]): { url: string; validation: PreviewUrlValidation } {
+  const resolved = applyVariableValuesToText(url, variables);
+  return { url: resolved, validation: validatePreviewDynamicUrl(resolved) };
+}
+
+export interface PreviewMessageStatusMeta {
+  label: string;
+  ariaLabel: string;
+  color: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
+}
+
+export function previewStatusMeta(status: PreviewMessageStatus | undefined): PreviewMessageStatusMeta {
+  switch (status) {
+    case 'PENDING':
+      return { label: '…', ariaLabel: 'Pending', color: 'default' };
+    case 'SENT':
+      return { label: '✓', ariaLabel: 'Sent', color: 'primary' };
+    case 'DELIVERED':
+      return { label: '✓✓', ariaLabel: 'Delivered', color: 'success' };
+    case 'READ':
+      return { label: '✓✓', ariaLabel: 'Read', color: 'success' };
+    case 'FAILED':
+      return { label: '!', ariaLabel: 'Failed', color: 'destructive' };
+    default:
+      return { label: '', ariaLabel: '', color: 'default' };
+  }
+}
+
+export interface PreviewAccessibilityText {
+  heading: string;
+  paragraphs: string[];
+}
+
+export function buildPreviewAccessibilityText(model: WhatsAppPreviewModel, language: string): PreviewAccessibilityText {
+  const heading = language === 'ar' ? `رسالة إلى ${model.account.displayName}` : `Message to ${model.account.displayName}`;
+  const paragraphs: string[] = [];
+  if (model.message.header?.text) paragraphs.push(model.message.header.text);
+  paragraphs.push(model.message.body);
+  if (model.message.footer) paragraphs.push(model.message.footer);
+  for (const button of model.message.buttons) {
+    paragraphs.push(language === 'ar' ? `زر: ${button.text}` : `Button: ${button.text}`);
+  }
+  return { heading, paragraphs };
+}
+
+export function buildWhatsAppPreviewModel(input: {
+  account: WhatsAppPreviewAccount;
+  message: WhatsAppPreviewModel['message'];
+  variables?: WhatsAppPreviewVariable[];
+}): WhatsAppPreviewModel {
+  return {
+    account: input.account,
+    message: input.message,
+    variables: input.variables ?? [],
+  };
+}
+
+export const helpCategorySchema = z.object({
+  id: z.string().uuid(),
+  parentCategoryId: z.string().uuid().nullable(),
+  nameAr: z.string(),
+  nameEn: z.string(),
+  slug: z.string(),
+  descriptionAr: z.string().nullable(),
+  descriptionEn: z.string().nullable(),
+  icon: z.string().nullable(),
+  sortOrder: z.number().int(),
+  status: z.enum(HELP_CATEGORY_STATUSES),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+  articleCount: z.number().int().nonnegative().optional(),
+});
+export type HelpCategoryDto = z.infer<typeof helpCategorySchema>;
+
+export const helpArticleSummarySchema = z.object({
+  id: z.string().uuid(),
+  categoryId: z.string().uuid(),
+  categorySlug: z.string(),
+  categoryName: z.string(),
+  title: z.string(),
+  summary: z.string().nullable(),
+  slug: z.string(),
+  articleType: z.enum(HELP_ARTICLE_TYPES),
+  difficulty: z.enum(HELP_ARTICLE_DIFFICULTIES),
+  estimatedReadingMinutes: z.number().int().nonnegative(),
+  keywords: z.array(z.string()).optional(),
+  isFeatured: z.boolean(),
+  isContextual: z.boolean(),
+  status: z.enum(HELP_ARTICLE_STATUSES).optional(),
+  publishedAt: z.string().nullable(),
+  updatedAt: z.string(),
+  views: z.number().int().nonnegative().optional(),
+});
+export type HelpArticleSummaryDto = z.infer<typeof helpArticleSummarySchema>;
+
+export const helpArticleDetailSchema = helpArticleSummarySchema.extend({
+  content: z.string(),
+  contentLanguage: z.enum(HELP_LANGUAGES),
+  fallbackLanguage: z.boolean().optional(),
+  allowedRoles: z.array(z.enum(ROLES)).optional(),
+  routePatterns: z.array(z.string()).optional(),
+  featureKey: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  previous: helpArticleSummarySchema.nullable().optional(),
+  next: helpArticleSummarySchema.nullable().optional(),
+  related: z.array(helpArticleSummarySchema).optional(),
+});
+export type HelpArticleDetailDto = z.infer<typeof helpArticleDetailSchema>;
+
+export const helpContextArticleSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  summary: z.string().nullable(),
+  slug: z.string(),
+  categorySlug: z.string(),
+  categoryName: z.string(),
+  articleType: z.enum(HELP_ARTICLE_TYPES),
+  difficulty: z.enum(HELP_ARTICLE_DIFFICULTIES),
+  estimatedReadingMinutes: z.number().int().nonnegative(),
+  content: z.string().nullable(),
+  allowedRoles: z.array(z.enum(ROLES)).optional(),
+  updatedAt: z.string(),
+});
+export type HelpContextArticleDto = z.infer<typeof helpContextArticleSchema>;
+
+export const helpContextSchema = z.object({
+  primary: helpContextArticleSchema.nullable(),
+  related: z.array(helpArticleSummarySchema),
+  featureKey: z.string().nullable(),
+  route: z.string(),
+});
+export type HelpContextDto = z.infer<typeof helpContextSchema>;
+
+export const helpSearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(120),
+  language: z.enum(HELP_LANGUAGES).default('ar'),
+  categorySlug: z.string().trim().min(1).max(180).optional(),
+  role: z.enum(ROLES).optional(),
+});
+export type HelpSearchQuery = z.infer<typeof helpSearchQuerySchema>;
+
+export const helpSearchResultSchema = helpArticleSummarySchema.extend({
+  highlight: z.string().optional(),
+  score: z.number().optional(),
+});
+export type HelpSearchResultDto = z.infer<typeof helpSearchResultSchema>;
+
+export const helpSearchResponseSchema = z.object({
+  items: z.array(helpSearchResultSchema),
+  total: z.number().int().nonnegative(),
+  query: z.string(),
+  noResults: z.boolean(),
+});
+export type HelpSearchResponseDto = z.infer<typeof helpSearchResponseSchema>;
+
+export const helpArticleQuerySchema = z.object({
+  categorySlug: z.string().trim().min(1).max(180).optional(),
+  language: z.enum(HELP_LANGUAGES).default('ar'),
+  status: z.enum(HELP_ARTICLE_STATUSES).optional(),
+  role: z.enum(ROLES).optional(),
+  q: z.string().trim().max(120).optional(),
+  featureKey: z.string().trim().max(80).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type HelpArticleQuery = z.infer<typeof helpArticleQuerySchema>;
+
+export const paginatedHelpArticlesSchema = z.object({
+  items: z.array(helpArticleSummarySchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  totalPages: z.number().int(),
+});
+export type PaginatedHelpArticles = z.infer<typeof paginatedHelpArticlesSchema>;
+
+export const helpContextQuerySchema = z.object({
+  route: z.string().trim().min(1).max(255),
+  featureKey: z.string().trim().max(80).optional(),
+  language: z.enum(HELP_LANGUAGES).default('ar'),
+});
+export type HelpContextQuery = z.infer<typeof helpContextQuerySchema>;
+
+export const helpFeedbackInputSchema = z.object({
+  articleId: z.string().uuid(),
+  wasHelpful: z.boolean(),
+  comment: z.string().trim().max(1000).optional(),
+});
+export type HelpFeedbackInput = z.infer<typeof helpFeedbackInputSchema>;
+
+export const helpViewInputSchema = z.object({
+  route: z.string().trim().max(255).optional(),
+});
+
+export const helpCategoryInputSchema = z.object({
+  parentCategoryId: z.string().uuid().nullable().optional(),
+  nameAr: z.string().trim().min(1).max(160),
+  nameEn: z.string().trim().min(1).max(160),
+  slug: z.string().trim().min(1).max(180).regex(/^[a-z0-9-]+$/, 'INVALID_SLUG'),
+  descriptionAr: z.string().trim().max(4000).nullable().optional(),
+  descriptionEn: z.string().trim().max(4000).nullable().optional(),
+  icon: z.string().trim().max(60).nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  status: z.enum(HELP_CATEGORY_STATUSES).optional(),
+});
+export type HelpCategoryInput = z.infer<typeof helpCategoryInputSchema>;
+
+export const helpCategoryReorderInputSchema = z.object({
+  items: z.array(z.object({ id: z.string().uuid(), sortOrder: z.number().int().min(0) })).min(1),
+});
+export type HelpCategoryReorderInput = z.infer<typeof helpCategoryReorderInputSchema>;
+
+export const helpArticleAdminQuerySchema = helpArticleQuerySchema.extend({
+  includeArchived: z.coerce.boolean().optional(),
+});
+
+export const helpArticleInputSchema = z.object({
+  categoryId: z.string().uuid(),
+  titleAr: z.string().trim().min(1).max(220),
+  titleEn: z.string().trim().min(1).max(220),
+  slug: z.string().trim().min(1).max(220).regex(/^[a-z0-9-]+$/, 'INVALID_SLUG'),
+  summaryAr: z.string().trim().max(2000).nullable().optional(),
+  summaryEn: z.string().trim().max(2000).nullable().optional(),
+  contentAr: z.string().max(100000).nullable().optional(),
+  contentEn: z.string().max(100000).nullable().optional(),
+  status: z.enum(HELP_ARTICLE_STATUSES).optional(),
+  articleType: z.enum(HELP_ARTICLE_TYPES).default('OVERVIEW'),
+  difficulty: z.enum(HELP_ARTICLE_DIFFICULTIES).default('BASIC'),
+  estimatedReadingMinutes: z.number().int().min(0).max(240).optional(),
+  allowedRoles: z.array(z.enum(ROLES)).min(1).optional(),
+  routePatterns: z.array(z.string().trim().min(1).max(255)).max(50).optional(),
+  featureKey: z.string().trim().max(80).nullable().optional(),
+  keywords: z.array(z.string().trim().min(1).max(60)).max(40).optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  isFeatured: z.boolean().optional(),
+  isContextual: z.boolean().optional(),
+  changeSummary: z.string().trim().max(500).optional(),
+});
+export type HelpArticleInput = z.infer<typeof helpArticleInputSchema>;
+
+export const helpArticleAdminDetailSchema = z.object({
+  id: z.string().uuid(),
+  categoryId: z.string().uuid(),
+  categoryName: z.string(),
+  slug: z.string(),
+  titleAr: z.string(),
+  titleEn: z.string(),
+  summaryAr: z.string().nullable(),
+  summaryEn: z.string().nullable(),
+  contentAr: z.string(),
+  contentEn: z.string(),
+  status: z.enum(HELP_ARTICLE_STATUSES),
+  articleType: z.enum(HELP_ARTICLE_TYPES),
+  difficulty: z.enum(HELP_ARTICLE_DIFFICULTIES),
+  estimatedReadingMinutes: z.number().int().nonnegative(),
+  allowedRoles: z.array(z.enum(ROLES)),
+  routePatterns: z.array(z.string()),
+  featureKey: z.string().nullable(),
+  keywords: z.array(z.string()),
+  sortOrder: z.number().int(),
+  isFeatured: z.boolean(),
+  isContextual: z.boolean(),
+  publishedAt: z.string().nullable(),
+  archivedAt: z.string().nullable(),
+  createdByUserId: z.string().uuid().nullable(),
+  updatedByUserId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type HelpArticleAdminDetailDto = z.infer<typeof helpArticleAdminDetailSchema>;
+
+export const helpVersionSchema = z.object({
+  id: z.string().uuid(),
+  articleId: z.string().uuid(),
+  changedByUserId: z.string().uuid().nullable(),
+  changeSummary: z.string().nullable(),
+  createdAt: z.string(),
+  titleAr: z.string().nullable(),
+  titleEn: z.string().nullable(),
+  contentAr: z.string().nullable(),
+  contentEn: z.string().nullable(),
+});
+export type HelpVersionDto = z.infer<typeof helpVersionSchema>;
+
+export const helpRestoreInputSchema = z.object({
+  versionId: z.string().uuid(),
+  changeSummary: z.string().trim().max(500).optional(),
+});
+
+export const helpFeedbackAdminQuerySchema = z.object({
+  articleId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const helpFeedbackAdminItemSchema = z.object({
+  id: z.string().uuid(),
+  articleId: z.string().uuid(),
+  articleTitle: z.string(),
+  userId: z.string().uuid().nullable(),
+  wasHelpful: z.boolean(),
+  comment: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type HelpFeedbackAdminItem = z.infer<typeof helpFeedbackAdminItemSchema>;
+
+export const paginatedHelpFeedbackSchema = z.object({
+  items: z.array(helpFeedbackAdminItemSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  totalPages: z.number().int(),
+});
+export type PaginatedHelpFeedback = z.infer<typeof paginatedHelpFeedbackSchema>;
+
+export const helpArticleStatsSchema = z.object({
+  articleId: z.string().uuid(),
+  title: z.string(),
+  views: z.number().int().nonnegative(),
+  helpful: z.number().int().nonnegative(),
+  notHelpful: z.number().int().nonnegative(),
+  helpfulPercent: z.number().nullable(),
+});
+export type HelpArticleStats = z.infer<typeof helpArticleStatsSchema>;
+
+export const helpAnalyticsSchema = z.object({
+  totalViews: z.number().int().nonnegative(),
+  totalFeedback: z.number().int().nonnegative(),
+  searchQueries: z.number().int().nonnegative(),
+  noResultQueries: z.number().int().nonnegative(),
+  topArticles: z.array(helpArticleStatsSchema).max(10),
+  worstArticles: z.array(helpArticleStatsSchema).max(10),
+  recentNoResultSearches: z
+    .array(z.object({ query: z.string(), count: z.number().int().nonnegative(), lastAt: z.string() }))
+    .max(10),
+});
+export type HelpAnalyticsDto = z.infer<typeof helpAnalyticsSchema>;
+
+export const helpOnboardingStepSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string(),
+  link: z.string().nullable(),
+  articleSlug: z.string().nullable(),
+  completed: z.boolean(),
+  autoDetectable: z.boolean(),
+  completedAt: z.string().nullable(),
+});
+export type HelpOnboardingStep = z.infer<typeof helpOnboardingStepSchema>;
+
+export const helpOnboardingSchema = z.object({
+  steps: z.array(helpOnboardingStepSchema),
+  completedCount: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  allCompleted: z.boolean(),
+  hidden: z.boolean(),
+});
+export type HelpOnboardingDto = z.infer<typeof helpOnboardingSchema>;
+
+export const helpOnboardingToggleInputSchema = z.object({
+  key: z.string().trim().min(1).max(120),
+  completed: z.boolean(),
+});
+
+export const helpOnboardingVisibilityInputSchema = z.object({
+  hidden: z.boolean(),
+});
+
+// ---------- Email & Notification DTOs ----------
+
+export const mailConfigSchema = z.object({
+  enabled: z.boolean(),
+  host: z.string(),
+  port: z.number().int(),
+  secure: z.boolean(),
+  username: z.string(),
+  hasPassword: z.boolean(),
+  fromEmail: z.string(),
+  fromName: z.string(),
+  replyTo: z.string(),
+  lastTestAt: z.string().nullable(),
+  lastTestError: z.string().nullable(),
+  lastSentAt: z.string().nullable(),
+  lastFailedAt: z.string().nullable(),
+});
+export type MailConfigDto = z.infer<typeof mailConfigSchema>;
+
+export const saveMailConfigInputSchema = z.object({
+  enabled: z.boolean().optional(),
+  host: z.string().trim().max(255).optional(),
+  port: z.coerce.number().int().min(1).max(65535).optional(),
+  secure: z.boolean().optional(),
+  username: z.string().trim().max(255).optional(),
+  password: z.string().max(255).optional(),
+  fromEmail: z.string().email().optional(),
+  fromName: z.string().trim().max(120).optional(),
+  replyTo: z.string().email().optional(),
+});
+export type SaveMailConfigInput = z.infer<typeof saveMailConfigInputSchema>;
+
+export const mailTestInputSchema = z.object({
+  to: emailSchema,
+  language: z.enum(LANGUAGES).default('ar'),
+});
+export type MailTestInput = z.infer<typeof mailTestInputSchema>;
+
+export const emailLogSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid().nullable(),
+  recipientEmail: z.string(),
+  templateKey: z.string(),
+  subject: z.string().nullable(),
+  language: z.enum(LANGUAGES),
+  status: z.enum(EMAIL_LOG_STATUSES),
+  providerMessageId: z.string().nullable(),
+  idempotencyKey: z.string(),
+  relatedEntityType: z.string().nullable(),
+  relatedEntityId: z.string().nullable(),
+  triggerEvent: z.string().nullable(),
+  attemptCount: z.number().int(),
+  queuedAt: z.string(),
+  sentAt: z.string().nullable(),
+  failedAt: z.string().nullable(),
+  failureCode: z.string().nullable(),
+  failureMessage: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type EmailLogDto = z.infer<typeof emailLogSchema>;
+
+export const paginatedEmailLogsSchema = z.object({
+  items: z.array(emailLogSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  totalPages: z.number().int(),
+});
+export type PaginatedEmailLogs = z.infer<typeof paginatedEmailLogsSchema>;
+
+export const dailySummarySettingsSchema = z.object({
+  enabled: z.boolean(),
+  recipients: z.array(emailSchema).max(20),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'INVALID_TIME'),
+  includeSections: z.array(z.string()).max(20),
+});
+export type DailySummarySettings = z.infer<typeof dailySummarySettingsSchema>;
+
+export const saveDailySummarySettingsInputSchema = z.object({
+  enabled: z.boolean().optional(),
+  recipients: z.array(emailSchema).max(20).optional(),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'INVALID_TIME').optional(),
+  includeSections: z.array(z.string()).max(20).optional(),
+});
+export type SaveDailySummarySettingsInput = z.infer<typeof saveDailySummarySettingsInputSchema>;
+
+export const notificationPreferencesSchema = z.object({
+  emailSecurityAlerts: z.boolean(),
+  emailCampaignAlerts: z.boolean(),
+  emailIntegrationAlerts: z.boolean(),
+  emailImportAlerts: z.boolean(),
+  emailManagementSummary: z.boolean(),
+  inAppSecurityAlerts: z.boolean(),
+  inAppCampaignAlerts: z.boolean(),
+  inAppIntegrationAlerts: z.boolean(),
+  inAppImportAlerts: z.boolean(),
+});
+export type NotificationPreferencesDto = z.infer<typeof notificationPreferencesSchema>;
+
+export const notificationPreferencesInputSchema = notificationPreferencesSchema.partial();
+export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesInputSchema>;
+
+export const notificationSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(NOTIFICATION_TYPES),
+  severity: z.enum(NOTIFICATION_SEVERITIES),
+  title: z.string(),
+  message: z.string().nullable(),
+  actionUrl: z.string().nullable(),
+  relatedEntityType: z.string().nullable(),
+  relatedEntityId: z.string().nullable(),
+  read: z.boolean(),
+  createdAt: z.string(),
+  expiresAt: z.string().nullable(),
+});
+export type NotificationDto = z.infer<typeof notificationSchema>;
+
+export const notificationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type NotificationQuery = z.infer<typeof notificationQuerySchema>;
+
+export const paginatedNotificationsSchema = z.object({
+  items: z.array(notificationSchema),
+  total: z.number().int().nonnegative(),
+  unread: z.number().int().nonnegative(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  totalPages: z.number().int(),
+});
+export type PaginatedNotifications = z.infer<typeof paginatedNotificationsSchema>;

@@ -29,6 +29,7 @@ import {
 import { BarChart3, Download, Megaphone } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { formatDateTime } from '../lib/format';
 import {
   useCampaignPerformance,
@@ -119,7 +120,7 @@ function CampaignsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('campaigns.name')}</TableHead>
-                <TableHead>{t('campaigns.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('reports.performance.recipients')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('reports.performance.sent')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('reports.performance.delivered')}</TableHead>
@@ -575,7 +576,7 @@ function ExportsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('exports.type')}</TableHead>
-                <TableHead>{t('exports.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('exports.rows')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('exports.createdAt')}</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
@@ -659,7 +660,11 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('reports.title')} description={t('reports.description')} />
+      <PageHeader
+        title={t('reports.title')}
+        description={t('reports.description')}
+        actions={<ContextualHelpButton featureKey="reports" />}
+      />
       <div className="flex flex-wrap gap-2">
         {TABS.map((tab) => (
           <Button key={tab.id} variant={active === tab.id ? 'default' : 'outline'} size="sm" onClick={() => setActive(tab.id)}>

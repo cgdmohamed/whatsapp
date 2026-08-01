@@ -11,6 +11,14 @@ import type { Request, Response } from 'express';
 import { ERROR_CODES } from '../errors';
 import { RequestContextService } from '../context/request-context.service';
 
+function isMulterFileTooLarge(exception: unknown): boolean {
+  return (
+    exception instanceof Error &&
+    exception.name === 'MulterError' &&
+    (exception as Error & { code?: string }).code === 'LIMIT_FILE_SIZE'
+  );
+}
+
 interface ErrorResponseBody {
   message: string | string[];
   error?: string;
@@ -35,7 +43,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message: string | string[] = ERROR_CODES.INTERNAL;
     let details: unknown;
 
-    if (exception instanceof HttpException) {
+    if (isMulterFileTooLarge(exception)) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      error = 'Payload Too Large';
+      message = ERROR_CODES.PAYLOAD_TOO_LARGE;
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
       if (typeof body === 'string') {

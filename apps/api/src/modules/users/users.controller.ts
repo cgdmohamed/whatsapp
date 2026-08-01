@@ -86,6 +86,18 @@ export class UsersController {
     return this.usersService.resetPassword(id, input.password, actor);
   }
 
+  @Post(':id/send-reset-link')
+  @Roles('ADMIN')
+  sendResetLink(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<UserDto> {
+    return this.usersService.sendResetLink(id, actor);
+  }
+
+  @Post(':id/temp-password')
+  @Roles('ADMIN')
+  setTemporaryPassword(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<UserDto> {
+    return this.usersService.setTemporaryPassword(id, actor);
+  }
+
   @Post(':id/revoke-sessions')
   @Roles('ADMIN')
   revokeSessions(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<void> {

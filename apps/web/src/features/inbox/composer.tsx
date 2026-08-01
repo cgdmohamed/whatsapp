@@ -2,10 +2,11 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { QuickReplyQuery } from '@wa/shared';
 import { Button, Textarea, toast } from '@wa/ui';
-import { Paperclip, Send, Sparkles } from 'lucide-react';
+import { FileText, Paperclip, Send, Sparkles } from 'lucide-react';
 
 import { useAuth } from '../../lib/auth';
 import { useQuickReplies, useSendReply, useUploadMedia } from './api';
+import { TemplatePicker } from './template-picker';
 
 interface ComposerProps {
   conversationId: string;
@@ -16,6 +17,7 @@ export function Composer({ conversationId }: ComposerProps) {
   const { user } = useAuth();
   const [text, setText] = React.useState('');
   const [quickReplyOpen, setQuickReplyOpen] = React.useState(false);
+  const [templateOpen, setTemplateOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const query = React.useMemo<QuickReplyQuery>(
@@ -115,6 +117,15 @@ export function Composer({ conversationId }: ComposerProps) {
         >
           <Paperclip className="h-4 w-4" aria-hidden="true" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTemplateOpen(true)}
+          aria-label={t('inbox.templates')}
+          title={t('inbox.templates')}
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" />
+        </Button>
         <input
           ref={fileInputRef}
           type="file"
@@ -144,6 +155,7 @@ export function Composer({ conversationId }: ComposerProps) {
         </Button>
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">{t('inbox.enterHint')}</p>
+      <TemplatePicker open={templateOpen} onOpenChange={setTemplateOpen} onUse={(content) => setText(content)} />
     </div>
   );
 }

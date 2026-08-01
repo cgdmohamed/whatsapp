@@ -36,12 +36,23 @@ export class ImportStorage {
     return readFileSync(this.rejectedPathFor(jobId));
   }
 
-  remove(jobId: string): void {
+  removeUpload(jobId: string): void {
     try {
-      for (const path of [this.pathFor(jobId), this.rejectedPathFor(jobId)]) {
-        if (existsSync(path)) {
-          unlinkSync(path);
-        }
+      const path = this.pathFor(jobId);
+      if (existsSync(path)) {
+        unlinkSync(path);
+      }
+    } catch {
+      // best-effort cleanup
+    }
+  }
+
+  remove(jobId: string): void {
+    this.removeUpload(jobId);
+    try {
+      const path = this.rejectedPathFor(jobId);
+      if (existsSync(path)) {
+        unlinkSync(path);
       }
     } catch {
       // best-effort cleanup

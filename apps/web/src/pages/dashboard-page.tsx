@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -29,6 +30,8 @@ import {
 
 import { useDashboardSummary, useDashboardTrends } from '../features/reports/api';
 import { useAuth } from '../lib/auth';
+import { OnboardingChecklist } from '../features/help/onboarding-checklist';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 
 const PRESETS: Array<{ key: string; days: number }> = [
   { key: '7d', days: 7 },
@@ -59,6 +62,28 @@ function useDateRange() {
   return { query, days, setDays, granularity, setGranularity, from, to, setFrom, setTo };
 }
 
+function useCountUp(target: number, duration = 700): number {
+  const [value, setValue] = React.useState(0);
+  React.useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+function AnimatedNumber({ value }: { value: number }) {
+  const count = useCountUp(value);
+  return <>{count}</>;
+}
+
 function StatCard({
   label,
   value,
@@ -71,13 +96,15 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold">{value}</div>
+        <div className="text-2xl font-semibold tabular-nums">
+          {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+        </div>
         {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
       </CardContent>
     </Card>
@@ -112,14 +139,30 @@ function TrendsChart({
 
   const max = Math.max(1, ...points.map((point) => point[seriesKey[series]]));
   const width = 640;
-  const height = 200;
-  const padding = 24;
-  const step = (width - padding * 2) / Math.max(1, points.length - 1);
+  const height = 240;
+  const padTop = 16;
+  const padBottom = 36;
+  const padX = 16;
+  const innerH = height - padTop - padBottom;
+  const innerW = width - padX * 2;
+  const step = innerW / Math.max(1, points.length - 1);
   const coords = points.map((point, index) => ({
-    x: padding + index * step,
-    y: height - padding - (point[seriesKey[series]] / max) * (height - padding * 2),
+    x: padX + index * step,
+    y: padTop + (1 - point[seriesKey[series]] / max) * innerH,
     value: point[seriesKey[series]],
   }));
+
+  const linePath = coords.map((coord, index) => `${index === 0 ? 'M' : 'L'} ${coord.x.toFixed(1)} ${coord.y.toFixed(1)}`).join(' ');
+  const baseline = padTop + innerH;
+  const first = coords[0]!;
+  const last = coords[coords.length - 1]!;
+  const areaPath = `${linePath} L ${last.x.toFixed(1)} ${baseline.toFixed(1)} L ${first.x.toFixed(1)} ${baseline.toFixed(1)} Z`;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((fraction) => ({
+    y: padTop + (1 - fraction) * innerH,
+    value: Math.round(max * fraction),
+  }));
+  const labelIndices = points.length <= 1 ? [0] : [0, Math.floor((points.length - 1) / 2), points.length - 1];
+  const gradientId = 'trend-area-gradient';
 
   return (
     <div className="space-y-4">
@@ -137,37 +180,56 @@ function TrendsChart({
       </div>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-48 w-full"
+        className="w-full"
         role="img"
         aria-label={seriesLabel[series]}
       >
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-border" strokeWidth="1" />
-        {coords.map((coord, index) => {
-          const prev = index > 0 ? coords[index - 1] : null;
-          return (
-            <g key={index}>
-              {prev ? (
-                <line
-                  x1={prev.x}
-                  y1={prev.y}
-                  x2={coord.x}
-                  y2={coord.y}
-                  className="stroke-primary"
-                  strokeWidth="2"
-                />
-              ) : null}
-              <circle cx={coord.x} cy={coord.y} r="3" className="fill-primary" />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {points.map((point) => (
-          <span key={point.bucket} className="whitespace-nowrap">
-            {point.bucket.slice(0, 10)}
-          </span>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" style={{ stopColor: 'hsl(var(--primary))', stopOpacity: 0.14 }} />
+            <stop offset="100%" style={{ stopColor: 'hsl(var(--primary))', stopOpacity: 0 }} />
+          </linearGradient>
+        </defs>
+        {gridLines.map((grid) => (
+          <line
+            key={grid.value}
+            x1={padX}
+            y1={grid.y}
+            x2={width - padX}
+            y2={grid.y}
+            className="stroke-border"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+          />
         ))}
-      </div>
+        <path d={areaPath} fill={`url(#${gradientId})`} />
+        <path
+          d={linePath}
+          className="stroke-primary"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {coords.map((coord, index) => (
+          <g key={index}>
+            <circle cx={coord.x} cy={coord.y} r="3" className="fill-primary" />
+            <title>{`${points[index]!.bucket}: ${coord.value}`}</title>
+          </g>
+        ))}
+        {labelIndices.map((index) => (
+          <text
+            key={index}
+            x={coords[index]!.x}
+            y={height - 12}
+            textAnchor="middle"
+            className="fill-muted-foreground"
+            fontSize="10"
+          >
+            {points[index]!.bucket.slice(0, 10)}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -189,12 +251,14 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {user.role === 'ADMIN' ? <OnboardingChecklist /> : null}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('dashboard.welcome', { name: user.name })}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ContextualHelpButton featureKey="dashboard" />
           <Select
             value={String(days)}
             onValueChange={(value) => {
@@ -275,21 +339,21 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <label className="text-sm text-muted-foreground" htmlFor="range-from">{t('dashboard.from')}</label>
-                  <input
+                  <label className="text-sm font-medium text-muted-foreground" htmlFor="range-from">{t('dashboard.from')}</label>
+                  <Input
                     id="range-from"
                     type="date"
-                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    className="mt-1.5 w-full"
                     value={from?.slice(0, 10) ?? ''}
                     onChange={(event) => setFrom(event.target.value ? new Date(`${event.target.value}T00:00:00`).toISOString() : undefined)}
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground" htmlFor="range-to">{t('dashboard.to')}</label>
-                  <input
+                  <label className="text-sm font-medium text-muted-foreground" htmlFor="range-to">{t('dashboard.to')}</label>
+                  <Input
                     id="range-to"
                     type="date"
-                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    className="mt-1.5 w-full"
                     value={to?.slice(0, 10) ?? ''}
                     onChange={(event) => setTo(event.target.value ? new Date(`${event.target.value}T23:59:59`).toISOString() : undefined)}
                   />

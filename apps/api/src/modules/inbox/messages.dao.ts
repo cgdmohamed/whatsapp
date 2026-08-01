@@ -151,6 +151,21 @@ export class MessagesDao {
     return rows[0];
   }
 
+  /**
+   * Returns any message already created for a campaign recipient. Used as a
+   * dedup guard before sending: the row is inserted only after Meta accepts
+   * the message, so its presence means the send already happened.
+   */
+  async findByCampaignRecipientId(campaignRecipientId: string): Promise<MessageRow | undefined> {
+    const rows = await this.db
+      .select()
+      .from(messages)
+      .where(eq(messages.campaignRecipientId, campaignRecipientId))
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    return rows[0];
+  }
+
   async insertConversation(values: NewConversation): Promise<ConversationRow> {
     const [row] = await this.db.insert(conversations).values(values).returning();
     return row!;

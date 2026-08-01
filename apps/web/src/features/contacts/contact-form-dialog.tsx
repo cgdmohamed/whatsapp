@@ -330,7 +330,7 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
                     name="source"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('contacts.source')}</FormLabel>
+                        <FormLabel>{t('common.source')}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -512,7 +512,7 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
                 name="source"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('contacts.source')}</FormLabel>
+                    <FormLabel>{t('common.source')}</FormLabel>
                     <FormControl>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger>

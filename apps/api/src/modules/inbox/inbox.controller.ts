@@ -232,7 +232,7 @@ export class InboxController {
   @Post('conversations/:id/media')
   @Roles('ADMIN', 'MANAGER', 'AGENT')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024, files: 1 } }))
   uploadMedia(
     @Param('id') id: string,
     @UploadedFile() file: IncomingUpload,
@@ -263,8 +263,8 @@ export class InboxController {
 
   @Get('media/:id/signed-url')
   @Roles('ADMIN', 'MANAGER', 'AGENT')
-  signedUrl(@Param('id') id: string): { url: string; expiresAt: string } {
-    return this.mediaService.createSignedUrl(id);
+  signedUrl(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<{ url: string; expiresAt: string }> {
+    return this.mediaService.createSignedUrl(actor, id);
   }
 
   @Get('stream')

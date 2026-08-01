@@ -169,7 +169,16 @@ export class InboxMediaService {
     };
   }
 
-  createSignedUrl(mediaFileId: string): { url: string; expiresAt: string } {
+  async createSignedUrl(actor: AuthUser, mediaFileId: string): Promise<{ url: string; expiresAt: string }> {
+    const mediaFile = await this.mediaFilesDao.findById(mediaFileId);
+    if (!mediaFile || !mediaFile.storedFilename || !this.storage.exists(mediaFile.storedFilename)) {
+      throw new NotFoundException(ERROR_CODES.NOT_FOUND);
+    }
+    if (mediaFile.conversationId) {
+      await this.accessService.getAccessibleConversation(mediaFile.conversationId, actor);
+    } else if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException(ERROR_CODES.INBOX_ACCESS_DENIED);
+    }
     const expires = Date.now() + SIGNED_URL_TTL_MS;
     const signature = this.sign(`${mediaFileId}.${expires}`);
     return {

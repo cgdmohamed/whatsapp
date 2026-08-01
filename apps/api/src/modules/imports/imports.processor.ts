@@ -5,6 +5,7 @@ import { AUDIT_ACTIONS } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
 import { AuditService } from '../../common/audit/audit.module';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsDao } from '../contacts/contacts.dao';
 import { ContactListsDao } from '../contacts/lists.dao';
 import { TagsDao } from '../contacts/tags.dao';
@@ -66,6 +67,7 @@ export class ImportsProcessor {
     private readonly listsDao: ContactListsDao,
     private readonly storage: ImportStorage,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
     @Inject(DATABASE) private readonly db: DrizzleDB,
   ) {}
 
@@ -74,7 +76,7 @@ export class ImportsProcessor {
     if (!job) {
       throw new Error('JOB_NOT_FOUND');
     }
-    if (job.status !== 'VALIDATING' && job.status !== 'PROCESSING') {
+    if (job.status !== 'VALIDATING' && job.status !== 'PROCESSING' && job.status !== 'FAILED') {
       throw new Error('INVALID_JOB_STATE');
     }
 
@@ -379,10 +381,38 @@ export class ImportsProcessor {
         invalidRows: result.invalidRows,
       },
     });
+
+    if (job?.createdByUserId) {
+      await this.notificationsService.notifyTargets({
+        userIds: [job.createdByUserId],
+        type: 'IMPORT',
+        severity: 'SUCCESS',
+        titleAr: 'اكتمل الاستيراد',
+        titleEn: 'Import completed',
+        messageAr: `اكتمل استيراد ${validation.candidates.length} صف، منها ${result.invalidRows} مرفوض.`,
+        messageEn: `Import of ${validation.candidates.length} rows finished, ${result.invalidRows} rejected.`,
+        actionUrl: '/imports',
+        entityType: 'import_job',
+        entityId: jobId,
+        category: 'import',
+        email: {
+          templateKey: 'import-completed',
+          vars: {
+            fileName: job.originalFilename,
+            created: result.createdRows,
+            updated: result.updatedRows,
+            rejected: result.invalidRows,
+          },
+        },
+      });
+    }
+
+    this.storage.removeUpload(jobId);
   }
 
   private async fail(jobId: string, error: unknown): Promise<void> {
     const job = await this.importsDao.findById(jobId);
+    const reason = error instanceof Error ? error.message : String(error);
     await this.importsDao.update(jobId, {
       status: 'FAILED',
       completedAt: new Date(),
@@ -393,8 +423,27 @@ export class ImportsProcessor {
       action: AUDIT_ACTIONS.IMPORT_COMPLETED,
       entityType: 'import_job',
       entityId: jobId,
-      metadata: { failed: true, error: error instanceof Error ? error.message : String(error) },
+      metadata: { failed: true, error: reason },
     });
+    if (job?.createdByUserId) {
+      await this.notificationsService.notifyTargets({
+        userIds: [job.createdByUserId],
+        type: 'IMPORT',
+        severity: 'ERROR',
+        titleAr: 'فشل الاستيراد',
+        titleEn: 'Import failed',
+        messageAr: 'فشل معالجة ملف الاستيراد.',
+        messageEn: 'The import file failed to process.',
+        actionUrl: '/imports',
+        entityType: 'import_job',
+        entityId: jobId,
+        category: 'import',
+        email: {
+          templateKey: 'import-failed',
+          vars: { fileName: job.originalFilename, reason: reason.slice(0, 300) },
+        },
+      });
+    }
   }
 
   private async hasActiveSuppressionByPhone(db: DrizzleDB, e164: string): Promise<boolean> {

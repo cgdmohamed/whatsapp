@@ -1,0 +1,129 @@
+# Self-hosted deployment for the WhatsApp Campaign Manager.
+#
+# Usage:
+#   docker compose build
+#   docker compose up -d
+#
+# The web container serves the SPA on port 80 and reverse-proxies /api to the
+# API container, so the whole stack is reachable at http://<host>.
+#
+# Production checklist before `up`:
+#   - Copy apps/api/.env into ./deploy/env/api.env and fill real secrets.
+#   - Set META_* credentials in api.env to enable sending/whatsapp features.
+#   - Put PostgreSQL/Redis behind a private network and set strong passwords.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: whatsapp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-now}
+      POSTGRES_DB: whatsapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatsapp -d whatsapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  migrate:
+    build:
+      context: .
+      target: api
+    restart: "no"
+    env_file:
+      - ./deploy/env/api.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["node", "apps/api/dist/scripts/migrate.js"]
+    networks:
+      - backend
+
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    env_file:
+      - ./deploy/env/api.env
+    environment:
+      PROCESS_ROLE: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "4000:4000"
+    volumes:
+      - api_data:/app/apps/api/data
+      - api_exports:/app/apps/api/exports
+      - api_uploads:/app/apps/api/uploads
+    networks:
+      - backend
+
+  worker:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    env_file:
+      - ./deploy/env/api.env
+    environment:
+      PROCESS_ROLE: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - api_data:/app/apps/api/data
+      - api_exports:/app/apps/api/exports
+      - api_uploads:/app/apps/api/uploads
+    networks:
+      - backend
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    networks:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
+  api_data:
+  api_exports:
+  api_uploads:
+
+networks:
+  backend:
+    driver: bridge

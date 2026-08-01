@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
+  BookOpen,
   Contact,
   FileText,
   FileUp,
@@ -13,12 +14,15 @@ import {
   LayoutDashboard,
   List,
   LogOut,
+  Mail,
   Megaphone,
   MessageCircle,
+  Moon,
   PanelLeft,
   ScrollText,
   Settings,
   ShieldCheck,
+  Sun,
   Tags,
   UserCircle,
   Users,
@@ -35,11 +39,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   SidebarNav,
-  type SidebarNavItem,
+  type SidebarSection,
 } from '@wa/ui';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
 import { getStoredLanguage, setLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../lib/i18n';
+import { useTheme } from '../lib/theme';
+import { HelpDrawerProvider, useHelpDrawer } from '../features/help/help-drawer-provider';
+import { NotificationBell } from '../features/notifications/notification-bell';
 
 const SIDEBAR_STORAGE_KEY = 'wa-sidebar-collapsed';
 
@@ -54,36 +61,75 @@ function useSidebarCollapsed() {
   return { collapsed, toggle };
 }
 
-function buildNavItems(role: Role, t: (key: string) => string): SidebarNavItem[] {
-  const items: SidebarNavItem[] = [
-    { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
-    { to: '/contacts', label: t('nav.contacts'), icon: Contact },
-    { to: '/lists', label: t('nav.lists'), icon: List },
-    { to: '/tags', label: t('nav.tags'), icon: Tags },
-    { to: '/templates', label: t('nav.templates'), icon: FileText, disabled: true },
-    { to: '/campaigns', label: t('nav.campaigns'), icon: Megaphone },
-    { to: '/inbox', label: t('nav.inbox'), icon: Inbox },
-  ];
-  if (role === 'ADMIN' || role === 'MANAGER') {
-    items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
+function buildNavSections(role: Role, t: (key: string) => string): SidebarSection[] {
+  const main: SidebarSection = {
+    label: t('nav.section.main'),
+    items: [
+      { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
+      { to: '/inbox', label: t('nav.inbox'), icon: Inbox },
+      { to: '/help', label: t('nav.help'), icon: BookOpen },
+    ],
+  };
+
+  const messaging: SidebarSection = {
+    label: t('nav.section.messaging'),
+    items: [
+      { to: '/campaigns', label: t('nav.campaigns'), icon: Megaphone },
+      { to: '/templates', label: t('nav.templates'), icon: FileText },
+    ],
+  };
+
+  const audience: SidebarSection = {
+    label: t('nav.section.audience'),
+    items: [
+      { to: '/contacts', label: t('nav.contacts'), icon: Contact },
+      { to: '/lists', label: t('nav.lists'), icon: List },
+      { to: '/tags', label: t('nav.tags'), icon: Tags },
+    ],
+  };
+
+  const manage: SidebarSection = {
+    label: t('nav.section.manage'),
+    items:
+      role === 'ADMIN' || role === 'MANAGER'
+        ? [
+            { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
+            { to: '/imports', label: t('nav.imports'), icon: FileUp },
+            { to: '/users', label: t('nav.users'), icon: Users },
+          ]
+        : [],
+  };
+
+  const admin: SidebarSection = {
+    label: t('nav.section.admin'),
+    items:
+      role === 'ADMIN'
+        ? [
+            { to: '/whatsapp', label: t('nav.whatsapp'), icon: MessageCircle },
+            { to: '/integration-logs', label: t('nav.integrationLogs'), icon: Activity },
+            { to: '/audit-log', label: t('nav.auditLog'), icon: ScrollText },
+            { to: '/operations', label: t('nav.operations'), icon: Gauge },
+            { to: '/settings/help-center', label: t('nav.helpAdmin'), icon: BookOpen },
+            { to: '/settings/email', label: t('nav.emailSettings'), icon: Mail },
+            { to: '/settings', label: t('nav.settings'), icon: Settings, end: true },
+          ]
+        : [],
+  };
+
+  const account: SidebarSection = {
+    label: t('nav.section.account'),
+    items: [{ to: '/profile', label: t('nav.profile'), icon: UserCircle }],
+  };
+
+  const sections: SidebarSection[] = [main, messaging, audience];
+  if (manage.items.length > 0) {
+    sections.push(manage);
   }
-  if (role === 'ADMIN' || role === 'MANAGER') {
-    items.push({ to: '/imports', label: t('nav.imports'), icon: FileUp });
+  if (admin.items.length > 0) {
+    sections.push(admin);
   }
-  if (role === 'ADMIN' || role === 'MANAGER') {
-    items.push({ to: '/users', label: t('nav.users'), icon: Users });
-  }
-  items.push({ to: '/profile', label: t('nav.profile'), icon: UserCircle });
-  if (role === 'ADMIN') {
-    items.push(
-      { to: '/whatsapp', label: t('nav.whatsapp'), icon: MessageCircle },
-      { to: '/integration-logs', label: t('nav.integrationLogs'), icon: Activity },
-      { to: '/audit-log', label: t('nav.auditLog'), icon: ScrollText },
-      { to: '/operations', label: t('nav.operations'), icon: Gauge },
-      { to: '/settings', label: t('nav.settings'), icon: Settings },
-    );
-  }
-  return items;
+  sections.push(account);
+  return sections;
 }
 
 export function AppShell() {
@@ -93,6 +139,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const { collapsed, toggle } = useSidebarCollapsed();
   const [language, setLanguageState] = React.useState<AppLanguage>(getStoredLanguage());
+  const { theme, toggle: toggleTheme } = useTheme();
 
   if (!user) {
     return null;
@@ -108,11 +155,11 @@ export function AppShell() {
     navigate('/login', { replace: true });
   };
 
-  const navItems = buildNavItems(user.role, t);
+  const navSections = buildNavSections(user.role, t);
 
   const header = (
     <div className="flex items-center gap-3 px-2 py-1">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm">
         <ShieldCheck className="h-4 w-4" aria-hidden="true" />
       </div>
       {!collapsed ? (
@@ -132,25 +179,38 @@ export function AppShell() {
   );
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-e bg-card">
-        <SidebarNav
-          items={navItems}
-          collapsed={collapsed}
-          currentPath={location.pathname}
-          onNavigate={(to) => navigate(to)}
-          header={header}
-          footer={footer}
-          className={collapsed ? 'w-16' : 'w-60'}
-        />
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/95 px-6 backdrop-blur">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{t('common.appName')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
+    <HelpDrawerProvider>
+      <div className="flex min-h-screen">
+        <aside
+          className={`sticky top-0 flex h-screen shrink-0 flex-col border-e bg-card transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}
+        >
+          <SidebarNav
+            sections={navSections}
+            collapsed={collapsed}
+            currentPath={location.pathname}
+            onNavigate={(to) => navigate(to)}
+            header={header}
+            footer={footer}
+            className={collapsed ? 'w-16' : 'w-60'}
+          />
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/95 px-6 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold tracking-tight">{t('common.appName')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <GlobalHelpButton />
+              <NotificationBell />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
                   <span>{t('languages.' + language)}</span>
@@ -191,6 +251,10 @@ export function AppShell() {
                   <KeyRound className="h-4 w-4" />
                   {t('common.changePassword')}
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/help')}>
+                  <BookOpen className="h-4 w-4" />
+                  {t('nav.help')}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => void handleLogout()}>
                   <LogOut className="h-4 w-4" />
@@ -201,9 +265,22 @@ export function AppShell() {
           </div>
         </header>
         <main className="flex-1 p-6">
-          <Outlet />
+          <div className="h-full">
+            <Outlet />
+          </div>
         </main>
       </div>
-    </div>
+      </div>
+    </HelpDrawerProvider>
+  );
+}
+
+function GlobalHelpButton() {
+  const { t } = useTranslation();
+  const { openHelp } = useHelpDrawer();
+  return (
+    <Button variant="ghost" size="icon" onClick={() => openHelp()} aria-label={t('help.helpAria')} title={t('help.helpAria')}>
+      <BookOpen className="h-4 w-4" />
+    </Button>
   );
 }

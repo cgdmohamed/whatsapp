@@ -104,10 +104,10 @@ export function ContactDetailSheet({ contact, onOpenChange }: ContactDetailSheet
               <Row label={t('contacts.company')}>{detail.company ?? '—'}</Row>
               <Row label={t('contacts.country')}>{detail.phoneCountry ?? '—'}</Row>
               <Row label={t('contacts.language')}>{detail.language ? t(`languages.${detail.language}`) : '—'}</Row>
-              <Row label={t('contacts.source')}>
+              <Row label={t('common.source')}>
                 {detail.source ? t(`contacts.source.${detail.source}`, { defaultValue: detail.source }) : '—'}
               </Row>
-              <Row label={t('contacts.status')}>{t(`contacts.status.${detail.status}`)}</Row>
+              <Row label={t('common.status')}>{t(`contacts.status.${detail.status}`)}</Row>
               <Row label={t('contacts.optInStatus')}>{t(`contacts.optIn.${detail.optInStatus}`)}</Row>
               <Row label={t('contacts.createdAt')}>{formatDateTime(detail.createdAt)}</Row>
             </dl>

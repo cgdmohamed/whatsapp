@@ -25,5 +25,16 @@ export default defineConfig({
     commonjsOptions: {
       include: [/node_modules/, /packages/],
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          data: ['@tanstack/react-query'],
+          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
   },
 });

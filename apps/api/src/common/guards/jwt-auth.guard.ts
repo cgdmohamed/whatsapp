@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -60,6 +61,15 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException(ERROR_CODES.INVALID_TOKEN);
     }
 
+    if (user.mustChangePassword) {
+      const request = context.switchToHttp().getRequest<{ url?: string; originalUrl?: string }>();
+      const path = request.originalUrl ?? request.url ?? '';
+      const allowed = ['/api/auth/me', '/api/auth/change-password', '/api/auth/logout', '/api/auth/revoke-sessions', '/api/auth/refresh'];
+      if (!allowed.some((prefix) => path.startsWith(prefix))) {
+        throw new ForbiddenException(ERROR_CODES.MUST_CHANGE_PASSWORD);
+      }
+    }
+
     (request as { user?: unknown }).user = {
       id: user.id,
       name: user.name,
@@ -67,6 +77,7 @@ export class JwtAuthGuard implements CanActivate {
       role: user.role,
       status: user.status,
       preferredLanguage: user.preferredLanguage,
+      mustChangePassword: user.mustChangePassword,
     };
     this.requestContext.setActor(user.id, user.role);
     return true;

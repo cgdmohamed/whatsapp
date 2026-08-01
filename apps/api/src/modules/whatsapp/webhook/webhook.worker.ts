@@ -32,6 +32,9 @@ export class WebhookProcessor implements OnModuleDestroy {
     this.worker.on('failed', (job, error) => {
       this.logger.warn(`Webhook job ${job?.id ?? 'unknown'} failed: ${error.message}`);
     });
+    this.worker.on('error', (error) => {
+      this.logger.error(`Webhook worker error: ${error.message}`);
+    });
   }
 
   async onModuleDestroy(): Promise<void> {

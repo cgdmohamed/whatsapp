@@ -29,6 +29,8 @@ import {
 import { Download, MoreHorizontal, Plus, Search, UserRound, X } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
+import { EmptyStateHelpLink } from '../features/help/empty-state-help-link';
 import { useDebouncedValue } from '../hooks/use-debounce';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
@@ -114,12 +116,15 @@ export function ContactsPage() {
         title={t('contacts.title')}
         description={t('contacts.description')}
         actions={
-          isManagerOrAdmin ? (
-            <Button onClick={() => setDialog({ type: 'create' })}>
-              <Plus className="h-4 w-4" />
-              {t('contacts.create')}
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="contacts" />
+            {isManagerOrAdmin ? (
+              <Button onClick={() => setDialog({ type: 'create' })}>
+                <Plus className="h-4 w-4" />
+                {t('contacts.create')}
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -214,7 +219,7 @@ export function ContactsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('contacts.contact')}</TableHead>
-                <TableHead>{t('contacts.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead>{t('contacts.optInStatus')}</TableHead>
                 <TableHead>{t('contacts.tags')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('contacts.lastActivity')}</TableHead>
@@ -319,7 +324,9 @@ export function ContactsPage() {
                   : (
                       <TableRow>
                         <TableCell colSpan={7} className="p-0">
-                          <EmptyState icon={UserRound} title={t('contacts.noContacts')} description={t('contacts.noContactsDescription')} />
+                          <EmptyState icon={UserRound} title={t('contacts.noContacts')} description={t('contacts.noContactsDescription')}>
+                            <EmptyStateHelpLink categorySlug="contacts" slug="importing-contacts-from-excel" />
+                          </EmptyState>
                         </TableCell>
                       </TableRow>
                     )}

@@ -29,6 +29,7 @@ import {
 import { Download, FileUp, MoreHorizontal, Table2 } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { formatDateTime } from '../lib/format';
 import { useImportJobs, useImportRejectedCsv } from '../features/imports/api';
 import { ImportWizardDialog } from '../features/imports/import-wizard-dialog';
@@ -89,10 +90,13 @@ export function ImportsPage() {
         title={t('imports.title')}
         description={t('imports.description')}
         actions={
-          <Button onClick={() => setWizardOpen(true)}>
-            <FileUp className="h-4 w-4" />
-            {t('imports.upload')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="imports" />
+            <Button onClick={() => setWizardOpen(true)}>
+              <FileUp className="h-4 w-4" />
+              {t('imports.upload')}
+            </Button>
+          </div>
         }
       />
 
@@ -127,7 +131,7 @@ export function ImportsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('imports.file')}</TableHead>
-                <TableHead>{t('imports.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead>{t('imports.totalRows')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('imports.results')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('imports.createdAt')}</TableHead>

@@ -25,6 +25,8 @@ import {
 import { Megaphone, Plus } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
+import { EmptyStateHelpLink } from '../features/help/empty-state-help-link';
 import { formatDateTime } from '../lib/format';
 import { useCampaigns } from '../features/campaigns/api';
 import { CampaignBuilderDialog } from '../features/campaigns/campaign-builder-dialog';
@@ -74,10 +76,13 @@ export function CampaignsPage() {
         title={t('campaigns.title')}
         description={t('campaigns.description')}
         actions={
-          <Button onClick={() => setBuilderOpen(true)}>
-            <Plus className="h-4 w-4" />
-            {t('campaigns.newCampaign')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="campaigns" />
+            <Button onClick={() => setBuilderOpen(true)}>
+              <Plus className="h-4 w-4" />
+              {t('campaigns.newCampaign')}
+            </Button>
+          </div>
         }
       />
 
@@ -120,7 +125,7 @@ export function CampaignsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('campaigns.name')}</TableHead>
-                <TableHead>{t('campaigns.status')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('campaigns.template')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('campaigns.scheduledAtLabel')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('campaigns.createdAtShort')}</TableHead>
@@ -166,7 +171,9 @@ export function CampaignsPage() {
                             icon={Megaphone}
                             title={t('campaigns.noCampaigns')}
                             description={t('campaigns.noCampaignsDescription')}
-                          />
+                          >
+                            <EmptyStateHelpLink categorySlug="campaigns" slug="creating-the-first-campaign" />
+                          </EmptyState>
                         </TableCell>
                       </TableRow>
                     )}

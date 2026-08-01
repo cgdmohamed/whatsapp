@@ -39,6 +39,14 @@ import type {
   MediaFileStatus,
   ExportJobType,
   ExportJobStatus,
+  HelpArticleStatus,
+  HelpArticleType,
+  HelpArticleDifficulty,
+  HelpCategoryStatus,
+  HelpLinkRelation,
+  EmailLogStatus,
+  NotificationSeverity,
+  NotificationType,
 } from '@wa/shared';
 
 export const users = pgTable('users', {
@@ -49,6 +57,10 @@ export const users = pgTable('users', {
   role: varchar('role', { length: 20 }).$type<Role>().notNull().default('AGENT'),
   status: varchar('status', { length: 20 }).$type<UserStatus>().notNull().default('ACTIVE'),
   preferredLanguage: varchar('preferred_language', { length: 2 }).$type<Language>().notNull().default('ar'),
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
+  passwordChangedAt: timestamp('password_changed_at', { withTimezone: true }),
+  failedLoginCount: integer('failed_login_count').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
@@ -777,3 +789,346 @@ export type MessageStatusEventRow = typeof messageStatusEvents.$inferSelect;
 export type NewMessageStatusEvent = typeof messageStatusEvents.$inferInsert;
 export type ExportJobRow = typeof exportJobs.$inferSelect;
 export type NewExportJob = typeof exportJobs.$inferInsert;
+
+// ---------- Help Center ----------
+
+export const helpCategories = pgTable(
+  'help_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    parentCategoryId: uuid('parent_category_id').references((): AnyPgColumn => helpCategories.id, { onDelete: 'set null' }),
+    nameAr: varchar('name_ar', { length: 160 }).notNull(),
+    nameEn: varchar('name_en', { length: 160 }).notNull(),
+    slug: varchar('slug', { length: 180 }).notNull(),
+    descriptionAr: text('description_ar'),
+    descriptionEn: text('description_en'),
+    icon: varchar('icon', { length: 60 }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    status: varchar('status', { length: 20 }).$type<HelpCategoryStatus>().notNull().default('PUBLISHED'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('help_categories_slug_idx').on(table.slug),
+    index('help_categories_status_idx').on(table.status),
+    index('help_categories_sort_idx').on(table.sortOrder),
+  ],
+);
+
+export const helpArticles = pgTable(
+  'help_articles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => helpCategories.id, { onDelete: 'cascade' }),
+    titleAr: varchar('title_ar', { length: 220 }).notNull(),
+    titleEn: varchar('title_en', { length: 220 }).notNull(),
+    slug: varchar('slug', { length: 220 }).notNull(),
+    summaryAr: text('summary_ar'),
+    summaryEn: text('summary_en'),
+    contentAr: text('content_ar'),
+    contentEn: text('content_en'),
+    status: varchar('status', { length: 20 }).$type<HelpArticleStatus>().notNull().default('DRAFT'),
+    articleType: varchar('article_type', { length: 30 }).$type<HelpArticleType>().notNull().default('OVERVIEW'),
+    difficulty: varchar('difficulty', { length: 20 }).$type<HelpArticleDifficulty>().notNull().default('BASIC'),
+    estimatedReadingMinutes: integer('estimated_reading_minutes').notNull().default(3),
+    allowedRoles: jsonb('allowed_roles').$type<Role[] | null>(),
+    routePatterns: jsonb('route_patterns').$type<string[] | null>(),
+    featureKey: varchar('feature_key', { length: 80 }),
+    keywords: jsonb('keywords').$type<string[] | null>(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isFeatured: boolean('is_featured').notNull().default(false),
+    isContextual: boolean('is_contextual').notNull().default(true),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('help_articles_slug_idx').on(table.slug),
+    index('help_articles_category_idx').on(table.categoryId),
+    index('help_articles_status_idx').on(table.status),
+    index('help_articles_feature_key_idx').on(table.featureKey),
+    index('help_articles_published_at_idx').on(table.publishedAt),
+    index('help_articles_featured_idx').on(table.isFeatured),
+  ],
+);
+
+export const helpArticleLinks = pgTable(
+  'help_article_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceArticleId: uuid('source_article_id')
+      .notNull()
+      .references(() => helpArticles.id, { onDelete: 'cascade' }),
+    targetArticleId: uuid('target_article_id')
+      .notNull()
+      .references(() => helpArticles.id, { onDelete: 'cascade' }),
+    relationType: varchar('relation_type', { length: 20 }).$type<HelpLinkRelation>().notNull().default('RELATED'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('help_links_source_idx').on(table.sourceArticleId),
+    index('help_links_target_idx').on(table.targetArticleId),
+  ],
+);
+
+export const helpArticleFeedback = pgTable(
+  'help_article_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => helpArticles.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    wasHelpful: boolean('was_helpful').notNull(),
+    comment: text('comment'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('help_feedback_article_idx').on(table.articleId),
+    index('help_feedback_user_idx').on(table.userId),
+  ],
+);
+
+export const helpArticleViews = pgTable(
+  'help_article_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => helpArticles.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    route: varchar('route', { length: 255 }),
+    viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('help_views_article_idx').on(table.articleId),
+    index('help_views_viewed_at_idx').on(table.viewedAt),
+  ],
+);
+
+export const helpChangeLogs = pgTable(
+  'help_change_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => helpArticles.id, { onDelete: 'cascade' }),
+    changedByUserId: uuid('changed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    changeSummary: text('change_summary'),
+    previousVersion: jsonb('previous_version').$type<Record<string, unknown> | null>(),
+    newVersion: jsonb('new_version').$type<Record<string, unknown> | null>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('help_change_logs_article_idx').on(table.articleId)],
+);
+
+export const helpSearchLogs = pgTable(
+  'help_search_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    query: varchar('query', { length: 200 }).notNull(),
+    language: varchar('language', { length: 2 }).notNull().default('ar'),
+    resultCount: integer('result_count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('help_search_logs_created_at_idx').on(table.createdAt)],
+);
+
+export const helpOnboardingSteps = pgTable(
+  'help_onboarding_steps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stepKey: varchar('step_key', { length: 120 }).notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('help_onboarding_user_step_idx').on(table.userId, table.stepKey),
+    index('help_onboarding_user_idx').on(table.userId),
+  ],
+);
+
+export const helpOnboardingState = pgTable(
+  'help_onboarding_state',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    hidden: boolean('hidden').notNull().default(false),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+);
+
+export type HelpCategoryRow = typeof helpCategories.$inferSelect;
+export type NewHelpCategory = typeof helpCategories.$inferInsert;
+export type HelpArticleRow = typeof helpArticles.$inferSelect;
+export type NewHelpArticle = typeof helpArticles.$inferInsert;
+export type HelpArticleLinkRow = typeof helpArticleLinks.$inferSelect;
+export type NewHelpArticleLink = typeof helpArticleLinks.$inferInsert;
+export type HelpArticleFeedbackRow = typeof helpArticleFeedback.$inferSelect;
+export type NewHelpArticleFeedback = typeof helpArticleFeedback.$inferInsert;
+export type HelpArticleViewRow = typeof helpArticleViews.$inferSelect;
+export type NewHelpArticleView = typeof helpArticleViews.$inferInsert;
+export type HelpChangeLogRow = typeof helpChangeLogs.$inferSelect;
+export type NewHelpChangeLog = typeof helpChangeLogs.$inferInsert;
+export type HelpSearchLogRow = typeof helpSearchLogs.$inferSelect;
+export type NewHelpSearchLog = typeof helpSearchLogs.$inferInsert;
+export type HelpOnboardingStepRow = typeof helpOnboardingSteps.$inferSelect;
+export type NewHelpOnboardingStep = typeof helpOnboardingSteps.$inferInsert;
+export type HelpOnboardingStateRow = typeof helpOnboardingState.$inferSelect;
+export type NewHelpOnboardingState = typeof helpOnboardingState.$inferInsert;
+
+// ---------- Email & Notifications ----------
+
+export const emailLogs = pgTable(
+  'email_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    recipientEmail: varchar('recipient_email', { length: 255 }).notNull(),
+    templateKey: varchar('template_key', { length: 80 }).notNull(),
+    subject: varchar('subject', { length: 255 }),
+    language: varchar('language', { length: 2 }).$type<Language>().notNull().default('ar'),
+    status: varchar('status', { length: 20 }).$type<EmailLogStatus>().notNull().default('QUEUED'),
+    providerMessageId: varchar('provider_message_id', { length: 255 }),
+    idempotencyKey: varchar('idempotency_key', { length: 200 }).notNull(),
+    relatedEntityType: varchar('related_entity_type', { length: 60 }),
+    relatedEntityId: varchar('related_entity_id', { length: 100 }),
+    triggerEvent: varchar('trigger_event', { length: 80 }),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+    failureCode: varchar('failure_code', { length: 60 }),
+    failureMessage: text('failure_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex('email_logs_idempotency_key_idx').on(table.idempotencyKey),
+    index('email_logs_user_idx').on(table.userId),
+    index('email_logs_status_idx').on(table.status),
+    index('email_logs_queued_at_idx').on(table.queuedAt),
+  ],
+);
+
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    requestedIp: varchar('requested_ip', { length: 64 }),
+    requestedUserAgent: text('requested_user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('password_reset_tokens_user_idx').on(table.userId),
+    index('password_reset_tokens_expires_idx').on(table.expiresAt),
+  ],
+);
+
+export const passwordHistory = pgTable(
+  'password_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    passwordHash: text('password_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('password_history_user_idx').on(table.userId)],
+);
+
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    emailSecurityAlerts: boolean('email_security_alerts').notNull().default(true),
+    emailCampaignAlerts: boolean('email_campaign_alerts').notNull().default(true),
+    emailIntegrationAlerts: boolean('email_integration_alerts').notNull().default(true),
+    emailImportAlerts: boolean('email_import_alerts').notNull().default(true),
+    emailManagementSummary: boolean('email_management_summary').notNull().default(true),
+    inAppSecurityAlerts: boolean('in_app_security_alerts').notNull().default(true),
+    inAppCampaignAlerts: boolean('in_app_campaign_alerts').notNull().default(true),
+    inAppIntegrationAlerts: boolean('in_app_integration_alerts').notNull().default(true),
+    inAppImportAlerts: boolean('in_app_import_alerts').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+);
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 20 }).$type<NotificationType>().notNull(),
+    severity: varchar('severity', { length: 20 }).$type<NotificationSeverity>().notNull().default('INFO'),
+    titleAr: varchar('title_ar', { length: 255 }).notNull(),
+    titleEn: varchar('title_en', { length: 255 }).notNull(),
+    messageAr: text('message_ar'),
+    messageEn: text('message_en'),
+    actionUrl: varchar('action_url', { length: 255 }),
+    relatedEntityType: varchar('related_entity_type', { length: 60 }),
+    relatedEntityId: varchar('related_entity_id', { length: 100 }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('notifications_user_idx').on(table.userId),
+    index('notifications_user_read_idx').on(table.userId, table.readAt),
+    index('notifications_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export type EmailLogRow = typeof emailLogs.$inferSelect;
+export type NewEmailLog = typeof emailLogs.$inferInsert;
+export type PasswordResetTokenRow = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type PasswordHistoryRow = typeof passwordHistory.$inferSelect;
+export type NewPasswordHistory = typeof passwordHistory.$inferInsert;
+export type NotificationPreferencesRow = typeof notificationPreferences.$inferSelect;
+export type NewNotificationPreferences = typeof notificationPreferences.$inferInsert;
+export type NotificationRow = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

@@ -3,9 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
+  resetPasswordInputSchema,
+  validateResetTokenSchema,
   type AuthResponse,
   type ChangePasswordInput,
+  type ForgotPasswordInput,
   type LoginInput,
 } from '@wa/shared';
 import type { Request, Response } from 'express';
@@ -52,6 +56,35 @@ export class AuthController {
     const refreshToken = request.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
     await this.authService.logout(refreshToken);
     clearAuthCookies(response);
+    return { success: true };
+  }
+
+  @Public()
+  @RateLimit({ limit: 10, ttlSeconds: 300 })
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  async forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) input: ForgotPasswordInput,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(input.email);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('validate-reset-token')
+  async validateResetToken(
+    @Body(new ZodValidationPipe(validateResetTokenSchema)) input: { token: string },
+  ): Promise<{ valid: boolean }> {
+    return this.authService.validateResetToken(input.token);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordInputSchema)) input: { token: string; password: string },
+  ): Promise<{ success: true }> {
+    await this.authService.resetPassword(input.token, input.password);
     return { success: true };
   }
 

@@ -6,6 +6,7 @@ import type {
   CreateMessageTemplateInput,
   MessageTemplateDto,
   MessageTemplateQuery,
+  PreviewSampleValues,
   TemplateCategory,
   TemplateComponent,
   TemplateStatus,
@@ -47,6 +48,8 @@ import { AlertTriangle, FileText, Plus, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '../../lib/auth';
 import { formatDateTime } from '../../lib/format';
+import { EmptyStateHelpLink } from '../help/empty-state-help-link';
+import { TemplateLivePreview } from '../preview/template-live-preview';
 import { useCreateTemplate, useMessageTemplates, useSyncTemplates, useTemplateSyncStatus } from './templates-api';
 
 const STATUS_BADGE: Record<TemplateStatus, 'default' | 'secondary' | 'outline' | 'warning' | 'success' | 'destructive' | 'muted'> = {
@@ -213,6 +216,7 @@ function CreateTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [bodyText, setBodyText] = React.useState('');
   const [footerText, setFooterText] = React.useState('');
   const [buttons, setButtons] = React.useState<ButtonDraft[]>([]);
+  const [sampleValues, setSampleValues] = React.useState<PreviewSampleValues>({});
 
   React.useEffect(() => {
     if (!open) {
@@ -282,13 +286,14 @@ function CreateTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('templates.createTitle')}</DialogTitle>
           <DialogDescription>{t('templates.createDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="tpl-name">{t('templates.name')}</Label>
@@ -308,7 +313,7 @@ function CreateTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="tpl-category">{t('templates.category')}</Label>
+            <Label htmlFor="tpl-category">{t('common.category')}</Label>
             <Select value={category} onValueChange={(value) => setCategory(value as TemplateCategory)}>
               <SelectTrigger id="tpl-category">
                 <SelectValue />
@@ -437,6 +442,18 @@ function CreateTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 </Button>
               </div>
             ))}
+          </div>
+          </div>
+          <div className="lg:sticky lg:top-0 lg:self-start">
+            <TemplateLivePreview
+              language={language}
+              headerText={headerText}
+              bodyText={bodyText}
+              footerText={footerText}
+              buttons={buttons}
+              sampleValues={sampleValues}
+              onSampleChange={(values) => setSampleValues(values)}
+            />
           </div>
         </div>
 
@@ -600,8 +617,8 @@ export function TemplatesPanel() {
               <TableRow>
                 <TableHead>{t('templates.name')}</TableHead>
                 <TableHead>{t('templates.language')}</TableHead>
-                <TableHead className="hidden md:table-cell">{t('templates.category')}</TableHead>
-                <TableHead>{t('templates.status')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('common.category')}</TableHead>
+                <TableHead>{t('templates.statusColumn')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('templates.updated')}</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -655,7 +672,9 @@ export function TemplatesPanel() {
                             icon={FileText}
                             title={t('templates.noTemplates')}
                             description={t('templates.noTemplatesDescription')}
-                          />
+                          >
+                            <EmptyStateHelpLink categorySlug="message-templates" slug="synchronizing-templates" />
+                          </EmptyState>
                         </TableCell>
                       </TableRow>
                     )}

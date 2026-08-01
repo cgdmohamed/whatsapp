@@ -25,7 +25,14 @@ export class CampaignDispatchService {
     await this.schedulerQueue.add(
       SCHEDULER_JOB,
       { campaignId },
-      { jobId: `${SCHEDULER_JOB}:${campaignId}`, delay, removeOnComplete: true, removeOnFail: { count: 100 } },
+      {
+        jobId: `${SCHEDULER_JOB}-${campaignId}`,
+        delay,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: { count: 100 },
+      },
     );
   }
 
@@ -33,7 +40,13 @@ export class CampaignDispatchService {
     await this.recipientBuilderQueue.add(
       RECIPIENT_BUILD_JOB,
       { campaignId },
-      { jobId: `${RECIPIENT_BUILD_JOB}:${campaignId}`, removeOnComplete: true, removeOnFail: { count: 100 } },
+      {
+        jobId: `${RECIPIENT_BUILD_JOB}-${campaignId}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: { count: 100 },
+      },
     );
   }
 

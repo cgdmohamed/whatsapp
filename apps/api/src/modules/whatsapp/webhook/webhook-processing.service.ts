@@ -67,12 +67,14 @@ export class WebhookProcessingService {
       }
 
       const summary = eventTypeSummary(eventTypes);
-      await this.eventsDao.markProcessed(event.id, summary.slice(0, MAX_EVENT_TYPE_LENGTH));
 
       // Publish each normalized status/inbound event to the campaign status-reconciliation
-      // queue. The campaigns module consumes these to update messages, campaign recipients,
-      // reply attribution, and opt-out handling. The webhook module stays decoupled.
+      // and inbox queues before marking the record PROCESSED. The campaigns/inbox modules
+      // consume these to update messages, campaign recipients, reply attribution, and
+      // opt-out handling. The webhook module stays decoupled. Marking PROCESSED first
+      // would lose the downstream events if the process crashed before enqueueing them.
       await this.publishStatusEvents(event.id, result);
+      await this.eventsDao.markProcessed(event.id, summary.slice(0, MAX_EVENT_TYPE_LENGTH));
     } catch (error) {
       this.logger.warn(`Failed to process webhook event ${event.id}`, error instanceof Error ? error.stack : String(error));
       await this.eventsDao.markFailed(
@@ -99,7 +101,7 @@ export class WebhookProcessingService {
           'reconcile',
           { kind, payload, webhookEventId },
           {
-            jobId: `recon:${webhookEventId}:${index}`,
+            jobId: `recon-${webhookEventId}-${index}`,
             attempts: 5,
             backoff: { type: 'exponential', delay: 1000 },
             removeOnComplete: { count: 5000 },
@@ -117,7 +119,7 @@ export class WebhookProcessingService {
           'inbox',
           { kind, payload, webhookEventId },
           {
-            jobId: `inbox:${webhookEventId}:${index}`,
+            jobId: `inbox-${webhookEventId}-${index}`,
             attempts: 5,
             backoff: { type: 'exponential', delay: 1000 },
             removeOnComplete: { count: 5000 },

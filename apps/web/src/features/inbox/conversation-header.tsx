@@ -104,7 +104,7 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
 
         <Select value={conversation.priority} onValueChange={(value) => priorityMutation.mutate({ id: conversation.id, input: { priority: value as ConversationDetailDto['priority'] } })}>
           <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs" aria-label={t('inbox.priorityLabel')}>
-            <SelectValue placeholder={t('inbox.priority')} />
+            <SelectValue placeholder={t('common.priority')} />
           </SelectTrigger>
           <SelectContent>
             {CONVERSATION_PRIORITIES.map((value) => (

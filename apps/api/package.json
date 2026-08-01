@@ -16,6 +16,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:deploy": "tsx src/scripts/migrate.ts",
     "db:seed": "tsx src/scripts/seed.ts",
+    "db:help-seed": "tsx src/scripts/help-seed.ts",
+    "db:help-seed-1a": "tsx src/scripts/help-seed-1a.ts",
+    "db:help-seed-2a": "tsx src/scripts/help-seed-2a.ts",
     "db:reset": "tsx src/scripts/db-reset.ts"
   },
   "dependencies": {
@@ -31,17 +34,20 @@
     "cookie-parser": "^1.4.7",
     "csv-parse": "^7.0.1",
     "drizzle-orm": "^0.36.4",
+    "express": "^4.22.1",
     "hash-wasm": "^4.11.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "libphonenumber-js": "^1.13.10",
     "nestjs-pino": "^4.1.0",
+    "nodemailer": "^9.0.3",
     "pg": "^8.13.1",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "xlsx": "^0.18.5",
+    "xss": "^1.0.15",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -51,6 +57,7 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.2",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "dotenv": "^16.4.7",

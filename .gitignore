@@ -13,6 +13,11 @@ coverage/
 .env.local
 .env.*.local
 
+# runtime data (uploads, media, exports)
+apps/api/data/
+apps/api/exports/
+apps/api/uploads/
+
 # logs
 *.log
 logs/

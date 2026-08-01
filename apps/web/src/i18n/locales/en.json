@@ -16,7 +16,18 @@
     "whatsapp": "WhatsApp",
     "integrationLogs": "Integration Logs",
     "profile": "Profile",
-    "home": "Home"
+    "home": "Home",
+    "help": "Help Center",
+    "helpAdmin": "Help Center",
+    "emailSettings": "Email",
+    "section": {
+      "main": "Main",
+      "messaging": "Messaging",
+      "audience": "Audience",
+      "manage": "Manage",
+      "admin": "Administration",
+      "account": "Account"
+    }
   },
   "common": {
     "appName": "WhatsApp Campaign Manager",
@@ -55,7 +66,14 @@
     "open": "Open",
     "add": "Add",
     "remove": "Remove",
-    "none": "None"
+    "none": "None",
+    "status": "Status",
+    "category": "Category",
+    "source": "Source",
+    "priority": "Priority",
+    "inbox": "Inbox",
+    "darkMode": "Switch to dark mode",
+    "lightMode": "Switch to light mode"
   },
   "roles": {
     "ADMIN": "Admin",
@@ -72,8 +90,28 @@
     "loginSubtitle": "Enter your credentials to access the platform",
     "email": "Email",
     "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signIn": "Sign in",
     "invalidCredentials": "Invalid email or password",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordSubtitle": "Enter your email and we will send you recovery instructions if an account exists.",
+    "forgotPasswordSent": "If an eligible account exists for this email, password recovery instructions will be sent.",
+    "forgotPasswordSubmit": "Send recovery email",
+    "backToLogin": "Back to sign in",
+    "resetPasswordTitle": "Set a new password",
+    "resetPasswordSubtitle": "Choose a strong new password for your account.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordMismatch": "Passwords do not match",
+    "resetPasswordSuccess": "Your password has been reset. You can now sign in.",
+    "resetPasswordInvalid": "This reset link is invalid or has expired.",
+    "resetPasswordUsed": "This reset link has already been used.",
+    "resetTokenValidating": "Checking your reset link…",
+    "resetPasswordButton": "Reset password",
+    "requestNewResetLink": "Request a new reset link",
+    "goToLogin": "Go to sign in",
     "loginBlocked": "Too many failed attempts. Try again later.",
     "changePasswordTitle": "Change password",
     "changePasswordDescription": "Use a strong password with at least 8 characters including letters and numbers.",
@@ -233,7 +271,7 @@
     "name": "Name",
     "language": "Language",
     "category": "Category",
-    "status": "Status",
+    "statusColumn": "Status",
     "updated": "Updated",
     "preview": "Preview",
     "blocked": "Blocked",
@@ -481,7 +519,12 @@
     "serviceWindow": "Service window",
     "noWindow": "No active window",
     "recentCampaigns": "Recent campaigns",
-    "selectConversation": "Select a conversation to get started"
+    "selectConversation": "Select a conversation to get started",
+    "templates": "Templates",
+    "templatePicker": "Choose a template",
+    "templatePickerHint": "Preview the message before inserting. Nothing is sent automatically.",
+    "selectTemplate": "Select a template to preview it.",
+    "useTemplate": "Use template"
   },
   "webhookEvents": {
     "receivedAt": "Received",
@@ -1003,5 +1046,331 @@
       "unread": "Unread",
       "unassigned": "Unassigned"
     }
+  },
+  "help": {
+    "title": "Help Center",
+    "description": "Guides, troubleshooting, and answers for the whole platform.",
+    "searchPlaceholder": "Search articles…",
+    "searchLabel": "Search help",
+    "search": "Search",
+    "resultsFor": "Results for “{{query}}”",
+    "noResults": "No articles matched your search. Try different keywords or browse the categories below.",
+    "noResultsQuery": "No results",
+    "allArticles": "All articles",
+    "categories": "Categories",
+    "featured": "Featured guides",
+    "recentlyUpdated": "Recently updated",
+    "relatedArticles": "Related articles",
+    "articleType": {
+      "OVERVIEW": "Overview",
+      "STEP_BY_STEP": "Step-by-step",
+      "FAQ": "FAQ",
+      "TROUBLESHOOTING": "Troubleshooting",
+      "POLICY": "Policy",
+      "REFERENCE": "Reference"
+    },
+    "difficulty": {
+      "BASIC": "Basic",
+      "INTERMEDIATE": "Intermediate",
+      "ADVANCED": "Advanced"
+    },
+    "readingMinutes": "{{count}} min read",
+    "lastUpdated": "Last updated {{date}}",
+    "featuredLabel": "Featured",
+    "contextHelpTitle": "Guide for this section",
+    "contextHelpAria": "Open help for this section",
+    "helpAria": "Open Help Center",
+    "openFullArticle": "Open full article",
+    "openHelpCenter": "Open Help Center",
+    "whoCanUse": "Who can use this",
+    "mainActions": "Main actions",
+    "steps": "Steps",
+    "warnings": "Important warnings",
+    "commonMistakes": "Common mistakes",
+    "permission": "Required permission",
+    "wasHelpful": "Was this guide helpful?",
+    "yes": "Yes",
+    "no": "No",
+    "thanksForFeedback": "Thanks for your feedback.",
+    "commentPlaceholder": "Optional comment…",
+    "submitFeedback": "Submit",
+    "breadcrumbHome": "Help Center",
+    "prevArticle": "Previous",
+    "nextArticle": "Next",
+    "backToCategory": "All articles in {{category}}",
+    "roleRequired": "Roles: {{roles}}",
+    "allRoles": "All roles"
+  },
+  "helpAdmin": {
+    "title": "Help Center",
+    "description": "Manage categories, articles, feedback and usage.",
+    "tabs": {
+      "categories": "Categories",
+      "articles": "Articles",
+      "feedback": "Feedback",
+      "analytics": "Analytics"
+    },
+    "newCategory": "New category",
+    "newArticle": "New article",
+    "edit": "Edit",
+    "save": "Save",
+    "saveDraft": "Save draft",
+    "cancel": "Cancel",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "duplicate": "Duplicate",
+    "archive": "Archive",
+    "versions": "History",
+    "restoreVersion": "Restore as draft",
+    "status": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Archived"
+    },
+    "articleType": "Type",
+    "difficulty": "Difficulty",
+    "category": "Category",
+    "slug": "Slug",
+    "titleAr": "Arabic title",
+    "titleEn": "English title",
+    "summaryAr": "Arabic summary",
+    "summaryEn": "English summary",
+    "contentAr": "Arabic content",
+    "contentEn": "English content",
+    "contentHint": "Use HTML with h2/h3, p, ol/ul, table, and callouts: class=\"note|warning|tip|important|permission|mistake|success\".",
+    "allowedRoles": "Allowed roles",
+    "routePatterns": "Route patterns",
+    "routePatternsHint": "One per line, e.g. /campaigns or /campaigns/:id",
+    "featureKey": "Feature key",
+    "keywords": "Keywords",
+    "keywordsHint": "Comma-separated",
+    "readingMinutes": "Reading time (min)",
+    "featured": "Featured",
+    "contextual": "Show in contextual help",
+    "sortOrder": "Sort order",
+    "changeSummary": "Change summary",
+    "previewAr": "Preview (Arabic)",
+    "previewEn": "Preview (English)",
+    "noArticles": "No articles yet. Create the first one.",
+    "noCategories": "No categories yet.",
+    "confirmArchive": "Archive this article?",
+    "emptyFeedback": "No feedback yet.",
+    "helpfulPercent": "Helpful %",
+    "views": "Views",
+    "totalViews": "Total views",
+    "totalFeedback": "Total feedback",
+    "searchQueries": "Search queries",
+    "noResultQueries": "Searches with no results",
+    "topArticles": "Most viewed",
+    "worstArticles": "Lowest helpfulness",
+    "recentNoResultSearches": "Recent no-result searches",
+    "noVersions": "No version history yet.",
+    "versionChangeSummary": "Summary",
+    "versionDate": "When",
+    "language": "Language"
+  },
+  "onboarding": {
+    "title": "Get started",    "description": "Complete these steps to prepare the platform for your team.",
+    "hide": "Hide checklist",
+    "restore": "Show checklist",
+    "progress": "{{done}} of {{total}} completed",
+    "allDone": "All set — you have completed the setup checklist!",
+    "toggle": "Mark as done",
+    "toggleOff": "Mark as not done",
+    "step": {
+      "company-settings": {
+        "label": "Complete company settings",
+        "description": "Fill in your organization details in Settings."
+      },
+      "meta-credentials": {
+        "label": "Add Meta credentials",
+        "description": "Enter the App ID, App Secret and Verify Token."
+      },
+      "test-connection": {
+        "label": "Test the WhatsApp connection",
+        "description": "Verify Meta connectivity from the WhatsApp page."
+      },
+      "configure-webhook": {
+        "label": "Configure and verify the webhook",
+        "description": "Point Meta’s webhook to the platform and subscribe to messages."
+      },
+      "sync-phone-number": {
+        "label": "Synchronize the phone number",
+        "description": "Make sure your sending number is active."
+      },
+      "sync-templates": {
+        "label": "Synchronize templates",
+        "description": "Fetch approved message templates from Meta."
+      },
+      "import-contacts": {
+        "label": "Import contacts",
+        "description": "Add your audience via CSV or Excel."
+      },
+      "review-consent": {
+        "label": "Review consent status",
+        "description": "Confirm contacts have opt-in recorded before campaigning."
+      },
+      "create-test-list": {
+        "label": "Create a test list",
+        "description": "Build a small list to test campaigns."
+      },
+      "send-test-campaign": {
+        "label": "Send a test campaign",
+        "description": "Launch a campaign to verify the full flow."
+      },
+      "add-team-users": {
+        "label": "Add team users",
+        "description": "Create accounts and assign roles."
+      },
+      "review-security": {
+        "label": "Review security settings",
+        "description": "Confirm secrets, encryption and audit settings."
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You have no notifications.",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "dismiss": "Dismiss",
+    "open": "Open",
+    "unreadCount": "{{count}} unread"
+  },
+  "mailSettings": {
+    "title": "Email settings",
+    "description": "Configure transactional email, test SMTP and manage the daily summary.",
+    "status": "Email status",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "smtp": "SMTP configuration",
+    "host": "SMTP host",
+    "port": "SMTP port",
+    "secure": "Use TLS (secure port)",
+    "username": "SMTP username",
+    "password": "SMTP password",
+    "passwordPlaceholder": "Leave blank to keep the current password",
+    "fromEmail": "From email",
+    "fromName": "From name",
+    "replyTo": "Reply-to",
+    "save": "Save settings",
+    "testConnection": "Test SMTP connection",
+    "sendTestEmail": "Send test email",
+    "testEmailTo": "Recipient email",
+    "connectionTestOk": "SMTP connection successful",
+    "connectionTestFailed": "SMTP connection failed: {{error}}",
+    "lastTestAt": "Last connection test: {{date}}",
+    "lastSentAt": "Last successful email: {{date}}",
+    "lastFailedAt": "Last failed email: {{date}}",
+    "hasPassword": "Password is set",
+    "noPassword": "No SMTP password configured",
+    "queueStatus": "Queue",
+    "failedLogs": "Failed email jobs",
+    "noFailedLogs": "No failed email jobs.",
+    "retry": "Retry",
+    "dailySummary": "Daily management summary",
+    "summaryEnabled": "Send daily summary",
+    "summaryTime": "Delivery time (Africa/Cairo)",
+    "summaryRecipients": "Recipients (one per line)",
+    "saveSummary": "Save summary settings",
+    "sendTest": "Send test email",
+    "recipient": "Recipient email",
+    "language": "Language",
+    "testSent": "Test email queued.",
+    "testFailed": "Could not queue test email. Check the SMTP configuration and that email is enabled."
+  },
+  "preview": {
+    "notice": "Preview appearance is approximate and may vary by WhatsApp version and device.",
+    "deviceTitle": "Message preview",
+    "previewOnly": "Preview only — nothing was sent.",
+    "mode": {
+      "mobile": "Mobile",
+      "compact": "Compact",
+      "full": "Full width"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "direction": {
+      "ar": "Arabic RTL",
+      "en": "English LTR"
+    },
+    "width": {
+      "narrow": "Narrow",
+      "wide": "Wide"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "SENT": "Sent",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "FAILED": "Failed"
+    },
+    "missingVariable": "Missing required variable",
+    "missingVariableDescription": "This variable has no value. Map a source field or enter a fallback before sending.",
+    "buttons": "Buttons",
+    "inspector": {
+      "title": "Variables",
+      "component": "Component",
+      "position": "Position",
+      "placeholder": "Placeholder",
+      "source": "Source",
+      "resolvedValue": "Resolved value",
+      "fallback": "Fallback",
+      "status": {
+        "RESOLVED": "Resolved",
+        "FALLBACK_USED": "Fallback used",
+        "MISSING": "Missing",
+        "INVALID": "Invalid",
+        "TOO_LONG": "Too long"
+      }
+    },
+    "sample": {
+      "label": "Sample values",
+      "generate": "Generate samples",
+      "clear": "Clear",
+      "reset": "Reset to example"
+    },
+    "recipient": {
+      "title": "Preview recipients",
+      "previous": "Previous",
+      "next": "Next",
+      "search": "Search recipient…",
+      "random": "Random",
+      "eligible": "First eligible",
+      "ineligible": "First ineligible",
+      "name": "Name",
+      "phone": "Phone",
+      "eligibility": "Eligibility",
+      "eligible": "Eligible",
+      "ineligible": "Not eligible",
+      "consent": "Consent",
+      "suppression": "Suppression",
+      "variableStatus": "Variable resolution"
+    },
+    "warnings": {
+      "title": "Preview warnings",
+      "tooLongHeader": "The header is very long.",
+      "tooLongBody": "The body is very long.",
+      "tooManyLines": "The message has many lines.",
+      "longButton": "A button label is long.",
+      "longUrl": "The dynamic URL is very long.",
+      "emptyFooter": "The footer is empty.",
+      "missingMedia": "No media sample is available for the header.",
+      "longValue": "A variable value is very long.",
+      "mixedDirection": "The message mixes Arabic and English text."
+    },
+    "templateStatus": {
+      "APPROVED": "Approved",
+      "PENDING": "Pending approval",
+      "REJECTED": "Rejected",
+      "PAUSED": "Paused",
+      "DISABLED": "Disabled",
+      "DRAFT": "Draft"
+    },
+    "notApprovedBlocker": "This template is not approved. Production sending is disabled; preview remains available."
   }
 }

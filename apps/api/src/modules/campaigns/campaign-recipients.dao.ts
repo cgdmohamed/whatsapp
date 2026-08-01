@@ -168,6 +168,17 @@ export class CampaignRecipientsDao {
     return row?.value ?? 0;
   }
 
+  async countByStatuses(campaignId: string, statuses: CampaignRecipientStatus[]): Promise<number> {
+    if (statuses.length === 0) {
+      return 0;
+    }
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(campaignRecipients)
+      .where(and(eq(campaignRecipients.campaignId, campaignId), inArray(campaignRecipients.status, statuses)));
+    return row?.value ?? 0;
+  }
+
   async listByStatusForContact(contactId: string, statuses: CampaignRecipientStatus[]): Promise<CampaignRecipientRow[]> {
     if (statuses.length === 0) {
       return [];

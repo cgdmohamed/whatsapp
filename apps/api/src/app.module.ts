@@ -18,6 +18,9 @@ import { InboxModule } from './modules/inbox/inbox.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { OperationsModule } from './modules/operations/operations.module';
+import { HelpModule } from './modules/help/help.module';
+import { MailModule } from './modules/mail/mail.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { QueueModule } from './common/queue/queue.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { DatabaseModule } from './common/database/database.module';
@@ -84,6 +87,9 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     ReportsModule,
     AuditLogsModule,
     OperationsModule,
+    HelpModule,
+    MailModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },

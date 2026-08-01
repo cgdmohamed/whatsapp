@@ -299,7 +299,7 @@ export class CampaignsService {
       resolvedTemplateParameters: recipient.variables.map((v) => v.value ?? ''),
       status: (recipient.eligible ? 'PENDING' : 'INELIGIBLE') as CampaignRecipientStatus,
       eligibilityReason: recipient.reason,
-      idempotencyKey: `cmp:${campaign.id}:${recipient.contact.id}`,
+      idempotencyKey: `cmp-${campaign.id}-${recipient.contact.id}`,
       attemptCount: 0,
     }));
     await this.recipientsDao.deleteByCampaignId(campaign.id);

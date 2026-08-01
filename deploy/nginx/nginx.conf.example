@@ -1,0 +1,70 @@
+# Example host-level Nginx configuration for a single-server deployment.
+#
+# Assumptions:
+#   - The web app is built locally and copied to /var/www/whatsapp (apps/web/dist).
+#   - The API listens on 127.0.0.1:4000 (managed by PM2).
+#   - TLS termination happens at this server (or upstream).
+#
+# Steps:
+#   1. Build and copy assets:   pnpm build && cp -r apps/web/dist/* /var/www/whatsapp/
+#   2. Symlink this file into   /etc/nginx/sites-enabled/whatsapp
+#   3. nginx -t && systemctl reload nginx
+#   4. The API reads TRUST_PROXY=1 so it honors X-Forwarded-* headers.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name whatsapp.example.com;
+
+    # Redirect HTTP -> HTTPS (adjust if TLS is handled elsewhere).
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name whatsapp.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/whatsapp.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/whatsapp.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    root /var/www/whatsapp;
+    index index.html;
+
+    # Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # SPA fallback for client-side routes.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API reverse proxy. proxy_buffering off is required for the inbox SSE
+    # channel (/api/inbox/events).
+    location /api/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-Id $request_id;
+        proxy_read_timeout 120s;
+        proxy_buffering off;
+    }
+
+    # Content-hashed static assets: long-lived browser cache.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Basic request size guard (uploads are capped at 50 MB in the API too).
+    client_max_body_size 55m;
+}

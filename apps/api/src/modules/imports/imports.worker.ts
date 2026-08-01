@@ -4,6 +4,7 @@ import { Worker } from 'bullmq';
 
 import { IMPORTS_QUEUE_NAME } from '../../common/queue/queue.module';
 import { ImportsProcessor } from './imports.processor';
+import { ImportStorage } from './imports.storage';
 
 @Injectable()
 export class ImportsWorker implements OnModuleDestroy {
@@ -13,6 +14,7 @@ export class ImportsWorker implements OnModuleDestroy {
   constructor(
     configService: ConfigService,
     importsProcessor: ImportsProcessor,
+    importsStorage: ImportStorage,
   ) {
     const redisUrl = configService.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
     this.worker = new Worker(
@@ -32,6 +34,13 @@ export class ImportsWorker implements OnModuleDestroy {
     });
     this.worker.on('failed', (job, error) => {
       this.logger.warn(`Import job ${job?.id ?? 'unknown'} failed: ${error.message}`);
+      const jobId = job?.data?.jobId as string | undefined;
+      if (jobId) {
+        importsStorage.remove(jobId);
+      }
+    });
+    this.worker.on('error', (error) => {
+      this.logger.error(`Import worker error: ${error.message}`);
     });
   }
 

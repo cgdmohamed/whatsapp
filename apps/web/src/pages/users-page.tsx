@@ -37,6 +37,7 @@ import {
 import { MoreHorizontal, Plus, Search, UserRound, X } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
+import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { useDebouncedValue } from '../hooks/use-debounce';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
@@ -125,10 +126,13 @@ export function UsersPage() {
         title={t('users.title')}
         description={t('users.description')}
         actions={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            {t('users.create')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ContextualHelpButton featureKey="users" />
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              {t('users.create')}
+            </Button>
+          </div>
         }
       />
 

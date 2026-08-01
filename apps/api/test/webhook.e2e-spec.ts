@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DrizzleDB } from '../src/common/database/database.module';
@@ -69,6 +70,7 @@ describe('WhatsApp webhook (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication({ rawBody: true });
     app.setGlobalPrefix('api');
+    app.use(cookieParser());
     app.useLogger(false);
     await app.init();
 
@@ -178,7 +180,9 @@ describe('WhatsApp webhook (e2e)', () => {
 
       const events = await db.select().from(webhookEvents);
       expect(events).toHaveLength(1);
-      expect(events[0]!.processingStatus).toBe('QUEUED');
+      // The async worker may already have processed the event by the time we
+      // read the row; both QUEUED (pending) and PROCESSED (fast worker) are valid.
+      expect(['QUEUED', 'PROCESSING', 'PROCESSED']).toContain(events[0]!.processingStatus);
       expect(events[0]!.signatureValid).toBe(true);
 
       const processed = await waitForStatus(eventsDao, events[0]!.id, 'PROCESSED');

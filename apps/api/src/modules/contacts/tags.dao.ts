@@ -35,15 +35,18 @@ export class TagsDao {
 
     const [totalRow] = await this.db.select({ value: count() }).from(tags).where(where);
 
-    const ids = rows.map((row) => row.id);
-    const tagIds = ids.length > 0 ? ids : [''];
-    const usage = await this.db
-      .select({ tagId: contactTags.tagId, value: count() })
-      .from(contactTags)
-      .where(and(...tagIds.map((id) => eq(contactTags.tagId, id))))
-      .groupBy(contactTags.tagId);
-
-    const usageMap = new Map(usage.map((row) => [row.tagId, row.value]));
+    const usageMap = new Map<string, number>();
+    if (rows.length > 0) {
+      const ids = rows.map((row) => row.id);
+      const usage = await this.db
+        .select({ tagId: contactTags.tagId, value: count() })
+        .from(contactTags)
+        .where(and(...ids.map((id) => eq(contactTags.tagId, id))))
+        .groupBy(contactTags.tagId);
+      for (const row of usage) {
+        usageMap.set(row.tagId, row.value);
+      }
+    }
     const items = rows.map((row) => ({
       ...toTagSummary(row),
       description: row.description,

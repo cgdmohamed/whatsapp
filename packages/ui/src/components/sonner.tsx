@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Toaster as Sonner, toast } from 'sonner';
 
 import { cn } from '../lib/utils';
@@ -5,9 +6,19 @@ import { cn } from '../lib/utils';
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+  );
+
+  React.useEffect(() => {
+    const sync = () => setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    window.addEventListener('wa-theme-change', sync);
+    return () => window.removeEventListener('wa-theme-change', sync);
+  }, []);
+
   return (
     <Sonner
-      theme="light"
+      theme={theme}
       className="toaster group"
       toastOptions={{
         classNames: {

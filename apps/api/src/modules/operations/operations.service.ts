@@ -11,6 +11,7 @@ import type {
 
 import { AuditService } from '../../common/audit/audit.module';
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
+import { ERROR_CODES } from '../../common/errors';
 import { QueueManager } from '../../common/queue/queue.module';
 import {
   CAMPAIGN_METRICS_QUEUE_NAME,
@@ -192,7 +193,7 @@ export class OperationsService {
   async retryFailed(user: AuthUser, input: QueueOperationInput): Promise<QueueOperationResultDto> {
     const queue = this.queueManager.getQueueByName(input.queue);
     if (!queue) {
-      throw new BadRequestException('QUEUE_NOT_FOUND');
+      throw new BadRequestException(ERROR_CODES.QUEUE_NOT_FOUND);
     }
     const failedJobs = await queue.getFailed(0, 4999);
     const target = input.jobIds?.length ? failedJobs.filter((job) => input.jobIds!.includes(job.id ?? '')) : failedJobs;
@@ -222,7 +223,7 @@ export class OperationsService {
   async drainFailed(user: AuthUser, input: QueueOperationInput): Promise<QueueOperationResultDto> {
     const queue = this.queueManager.getQueueByName(input.queue);
     if (!queue) {
-      throw new BadRequestException('QUEUE_NOT_FOUND');
+      throw new BadRequestException(ERROR_CODES.QUEUE_NOT_FOUND);
     }
     const failedJobs = await queue.getFailed(0, 4999);
     const target = input.jobIds?.length ? failedJobs.filter((job) => input.jobIds!.includes(job.id ?? '')) : failedJobs;

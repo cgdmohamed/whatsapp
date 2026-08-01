@@ -4,26 +4,62 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 152 30% 97.5%;
+    --foreground: 170 22% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 170 22% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 170 22% 9%;
+    --primary: 152 60% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 28% 95%;
+    --secondary-foreground: 170 22% 12%;
+    --muted: 150 28% 95%;
+    --muted-foreground: 170 12% 42%;
+    --accent: 150 32% 94%;
+    --accent-foreground: 152 52% 22%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 153 24% 90%;
+    --input: 153 24% 88%;
+    --ring: 152 60% 36%;
     --radius: 0.5rem;
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 30%;
+    --info: 221.2 83.2% 53.3%;
+    --info-foreground: 221.2 83.2% 45%;
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 175 30% 6%;
+    --foreground: 150 30% 96%;
+    --card: 172 26% 8.5%;
+    --card-foreground: 150 30% 96%;
+    --popover: 172 26% 8.5%;
+    --popover-foreground: 150 30% 96%;
+    --primary: 152 65% 46%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 172 26% 14%;
+    --secondary-foreground: 150 30% 96%;
+    --muted: 172 26% 14%;
+    --muted-foreground: 150 12% 62%;
+    --accent: 172 26% 16%;
+    --accent-foreground: 150 30% 96%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 172 26% 16%;
+    --input: 172 26% 16%;
+    --ring: 152 60% 55%;
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 60%;
+    --warning-foreground: 45 93% 72%;
+    --info: 217.2 91.2% 59.8%;
+    --info-foreground: 217.2 91.2% 72%;
+    color-scheme: dark;
   }
 
   * {
@@ -34,4 +70,124 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Help Center article body ---------- */
+.help-body {
+  line-height: 1.7;
+}
+.help-body h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.help-body h3 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.help-body p {
+  margin: 0.5rem 0;
+}
+.help-body ol,
+.help-body ul {
+  margin: 0.5rem 0;
+  padding-inline-start: 1.5rem;
+}
+.help-body ol {
+  list-style: decimal;
+}
+.help-body ul {
+  list-style: disc;
+}
+.help-body li {
+  margin: 0.2rem 0;
+}
+.help-body code {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85em;
+}
+.help-body pre {
+  margin: 0.75rem 0;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted));
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+.help-body table {
+  width: 100%;
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.help-body th,
+.help-body td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.45rem 0.6rem;
+  text-align: start;
+}
+.help-body th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+.help-body a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.help-body img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+.help-body .note,
+.help-body .warning,
+.help-body .tip,
+.help-body .important,
+.help-body .permission,
+.help-body .mistake,
+.help-body .success {
+  margin: 0.75rem 0;
+  border-radius: 0.5rem;
+  border-inline-start: 3px solid;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+}
+.help-body .note {
+  border-color: hsl(var(--info));
+  background: hsl(var(--info) / 0.08);
+}
+.help-body .warning {
+  border-color: hsl(var(--warning));
+  background: hsl(var(--warning) / 0.1);
+}
+.help-body .tip {
+  border-color: hsl(var(--success));
+  background: hsl(var(--success) / 0.1);
+}
+.help-body .important,
+.help-body .permission {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+.help-body .mistake {
+  border-color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.08);
+}
+.help-body .success {
+  border-color: hsl(var(--success));
+  background: hsl(var(--success) / 0.1);
+  font-weight: 500;
 }

@@ -1,15 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { DelayedError, type Job } from 'bullmq';
 import type { TemplateSnapshot } from '@wa/shared';
 
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { MessageTemplatesDao } from '../whatsapp/templates/message-templates.dao';
 import { WhatsAppPhoneNumbersDao } from '../whatsapp/whatsapp-phone-numbers.dao';
 import { MetaApiError } from '../whatsapp/meta-api/meta-api.errors';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CampaignDispatchService } from './campaign-dispatch.service';
 import { CampaignRecipientsDao } from './campaign-recipients.dao';
 import { CampaignsDao } from './campaigns.dao';
 import { MessagesDao } from '../inbox/messages.dao';
+import type { CampaignRecipientRow } from '../../db/schema';
 
 interface SendJobData {
   recipientId: string;
@@ -62,6 +64,7 @@ export class CampaignProcessor {
     private readonly whatsappService: WhatsAppService,
     private readonly messagesDao: MessagesDao,
     private readonly dispatchService: CampaignDispatchService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async buildRecipients(job: Job<BuildJobData>): Promise<void> {
@@ -75,7 +78,21 @@ export class CampaignProcessor {
       return;
     }
 
+    // Idempotency guard: a stalled/retried build job must not re-run the loop.
+    // Otherwise recipients already moved out of PENDING become invisible to
+    // findEligibleForCampaign, and the `queued === 0` branch would wrongly mark
+    // the campaign COMPLETED while send jobs are still in flight.
+    const inFlight = await this.recipientsDao.countByStatuses(campaignId, ['QUEUED', 'SENDING']);
+    if (inFlight > 0) {
+      if (campaign.status !== 'RUNNING') {
+        await this.campaignsDao.update(campaignId, { status: 'RUNNING', queuedRecipients: campaign.queuedRecipients + inFlight });
+      }
+      this.logger.log(`Campaign ${campaignId} recipients already built (${inFlight} in flight); skipping rebuild.`);
+      return;
+    }
+
     const recipients = await this.recipientsDao.findEligibleForCampaign(campaignId);
+
     let queued = 0;
     for (const recipient of recipients) {
       const jobId = await this.dispatchService.enqueueRecipientSend(
@@ -91,7 +108,7 @@ export class CampaignProcessor {
     if (queued === 0) {
       await this.campaignsDao.update(campaignId, { status: 'COMPLETED', completedAt: new Date() });
       this.logger.log(`Campaign ${campaignId} has no recipients to send; completed.`);
-    } else {
+      await this.notifyCampaignCompleted(campaignId, { recipients: 0, sent: 0, delivered: 0, failed: 0 });    } else {
       await this.campaignsDao.update(campaignId, { status: 'RUNNING', queuedRecipients: campaign.queuedRecipients + queued });
       this.logger.log(`Queued ${queued} recipient send jobs for campaign ${campaignId}.`);
     }
@@ -119,7 +136,10 @@ export class CampaignProcessor {
       if (typeof job.moveToDelayed === 'function') {
         await job.moveToDelayed(rescheduleAt, job.token);
       }
-      return;
+      // Signal the worker that the job was moved to delayed; a normal return
+      // would make the worker try to complete an already-moved job and create
+      // a fail/retry loop.
+      throw new DelayedError();
     }
     if (campaign.status === 'CANCELLED' || campaign.status === 'FAILED') {
       await this.recipientsDao.setStatus(recipientId, 'CANCELLED');
@@ -137,6 +157,21 @@ export class CampaignProcessor {
         failedAt: new Date(),
         failureCode: 'TEMPLATE_NOT_APPROVED',
         failureMessage: 'Template no longer approved',
+      });
+      return;
+    }
+
+    // Dedup guard: a message row for this recipient is only written after Meta
+    // accepts the send, so its presence means a previous attempt (potentially
+    // interrupted after the HTTP response but before the DB write) already
+    // delivered. Do not send again.
+    const existingMessage = await this.messagesDao.findByCampaignRecipientId(recipientId);
+    if (existingMessage) {
+      this.logger.warn(`Campaign recipient ${recipientId} already has message ${existingMessage.id}; skipping duplicate send.`);
+      await this.recipientsDao.update(recipientId, {
+        status: 'SENT',
+        metaMessageId: existingMessage.metaMessageId,
+        sentAt: existingMessage.sentAt ?? new Date(),
       });
       return;
     }
@@ -190,37 +225,65 @@ export class CampaignProcessor {
     } catch (error) {
       if (error instanceof MetaApiError) {
         const transient = error.normalized.is_transient;
-        if (transient && job.attemptsMade < (job.opts.attempts ?? 1)) {
+        if (transient && job.attemptsMade < (job.opts.attempts ?? 1) - 1) {
           // BullMQ will retry with backoff; respect retry-after if provided.
           throw error;
         }
         // Permanent failure (or out of retries): mark recipient failed, no further retry.
-        await this.recipientsDao.update(recipientId, {
-          status: 'FAILED',
-          failedAt: new Date(),
-          failureCode: String(error.normalized.error_code ?? 'UNKNOWN'),
-          failureMessage: [error.normalized.title, error.normalized.message].filter(Boolean).join(': '),
-        });
-        await this.messagesDao.insert({
-          contactId: recipient.contactId,
-          campaignId: campaign.id,
-          campaignRecipientId: recipient.id,
-          whatsappPhoneNumberId: campaign.whatsappPhoneNumberId,
-          direction: 'OUTBOUND',
-          type: 'template',
-          status: 'FAILED',
-          templateName: template.name,
-          templateLanguage: template.language,
-          templateParameters: recipient.resolvedTemplateParameters as string[] | null,
-          errorCode: String(error.normalized.error_code ?? 'UNKNOWN'),
-          errorMessage: [error.normalized.title, error.normalized.message].filter(Boolean).join(': '),
-          failedAt: new Date(),
-          isTest: false,
-        } as never);
+        await this.markRecipientFailed(recipientId, recipient, campaign, template, error.normalized.error_code, [
+          error.normalized.title,
+          error.normalized.message,
+        ].filter(Boolean).join(': '));
         return;
       }
-      throw error;
+      if (job.attemptsMade < (job.opts.attempts ?? 1) - 1) {
+        // Generic/unexpected error: let BullMQ retry; the recipient stays in
+        // SENDING so the retry is allowed.
+        throw error;
+      }
+      // Final attempt failed with a non-Meta error: record FAILED so the
+      // recipient is not left stuck in SENDING.
+      await this.markRecipientFailed(
+        recipientId,
+        recipient,
+        campaign,
+        template,
+        'SEND_ERROR',
+        error instanceof Error ? error.message : String(error),
+      );
     }
+  }
+
+  private async markRecipientFailed(
+    recipientId: string,
+    recipient: CampaignRecipientRow,
+    campaign: { id: string; whatsappPhoneNumberId: string | null },
+    template: { name: string; language: string },
+    errorCode: number | string | null,
+    errorMessage: string,
+  ): Promise<void> {
+    await this.recipientsDao.update(recipientId, {
+      status: 'FAILED',
+      failedAt: new Date(),
+      failureCode: String(errorCode ?? 'UNKNOWN'),
+      failureMessage: errorMessage,
+    });
+    await this.messagesDao.insert({
+      contactId: recipient.contactId,
+      campaignId: campaign.id,
+      campaignRecipientId: recipientId,
+      whatsappPhoneNumberId: campaign.whatsappPhoneNumberId,
+      direction: 'OUTBOUND',
+      type: 'template',
+      status: 'FAILED',
+      templateName: template.name,
+      templateLanguage: template.language,
+      templateParameters: recipient.resolvedTemplateParameters as string[] | null,
+      errorCode: String(errorCode ?? 'UNKNOWN'),
+      errorMessage,
+      failedAt: new Date(),
+      isTest: false,
+    } as never);
   }
 
   async aggregateMetricsForCampaign(campaignId: string): Promise<void> {
@@ -241,8 +304,35 @@ export class CampaignProcessor {
         + await this.recipientsDao.countByStatus(campaignId, 'SENDING');
       if (pendingLeft === 0) {
         await this.campaignsDao.update(campaignId, { status: 'COMPLETED', completedAt: campaign.completedAt ?? new Date() });
+        await this.notifyCampaignCompleted(campaignId, {
+          sent: metrics.sent,
+          delivered: metrics.delivered,
+          failed: metrics.failed,
+        });
       }
     }
+  }
+
+  private async notifyCampaignCompleted(campaignId: string, counts: { sent: number; delivered: number; failed: number; recipients?: number }): Promise<void> {
+    const campaign = await this.campaignsDao.findById(campaignId);
+    if (!campaign) return;
+    await this.notificationsService.notifyTargets({
+      roles: ['ADMIN', 'MANAGER'],
+      type: 'CAMPAIGN',
+      severity: counts.failed > 0 ? 'WARNING' : 'SUCCESS',
+      titleAr: `اكتملت الحملة: ${campaign.name}`,
+      titleEn: `Campaign completed: ${campaign.name}`,
+      messageAr: `أُرسلت ${counts.sent} رسالة، سُلّمت ${counts.delivered}، فشلت ${counts.failed}.`,
+      messageEn: `${counts.sent} sent, ${counts.delivered} delivered, ${counts.failed} failed.`,
+      actionUrl: `/campaigns/${campaignId}`,
+      entityType: 'campaign',
+      entityId: campaignId,
+      category: 'campaign',
+      email: {
+        templateKey: 'campaign-completed',
+        vars: { campaignName: campaign.name, sent: counts.sent, delivered: counts.delivered, failed: counts.failed },
+      },
+    });
   }
 
   async aggregateAllActiveCampaignMetrics(): Promise<void> {

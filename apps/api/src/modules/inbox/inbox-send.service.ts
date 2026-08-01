@@ -111,7 +111,7 @@ export class InboxSendService {
       'send',
       { messageId: message.id },
       {
-        jobId: `inbox-send:${message.id}`,
+        jobId: `inbox-send-${message.id}`,
         attempts: 5,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: { count: 1000 },
@@ -152,7 +152,7 @@ export class InboxSendService {
       'send',
       { messageId: message.id },
       {
-        jobId: `inbox-send:${message.id}:retry:${Date.now()}`,
+        jobId: `inbox-send-${message.id}-retry-${Date.now()}`,
         attempts: 5,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: { count: 1000 },
@@ -240,7 +240,7 @@ export class InboxSendService {
       await this.onSent(message, conversation, response.messages[0]?.id ?? null);
     } catch (error) {
       if (error instanceof MetaApiError) {
-        if (error.normalized.is_transient && job.attemptsMade < (job.opts.attempts ?? 1)) {
+        if (error.normalized.is_transient && job.attemptsMade < (job.opts.attempts ?? 1) - 1) {
           throw error; // let BullMQ retry; message stays PENDING
         }
         await this.markFailed(message, String(error.normalized.error_code ?? 'UNKNOWN'), [
@@ -249,7 +249,7 @@ export class InboxSendService {
         ].filter(Boolean).join(': '));
         return;
       }
-      if (job.attemptsMade < (job.opts.attempts ?? 1)) {
+      if (job.attemptsMade < (job.opts.attempts ?? 1) - 1) {
         throw error;
       }
       await this.markFailed(message, 'SEND_FAILED', error instanceof Error ? error.message : String(error));

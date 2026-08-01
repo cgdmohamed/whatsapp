@@ -39,7 +39,7 @@ export class ImportsController {
   @Post('upload')
   @Roles('ADMIN', 'MANAGER')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024, files: 1 } }))
   upload(
     @UploadedFile() file: UploadedFileLike,
     @CurrentUser() actor: AuthUser,

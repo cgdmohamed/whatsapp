@@ -161,7 +161,7 @@ export class InboxInboundService {
       'download',
       { mediaFileId: mediaFile.id },
       {
-        jobId: `inbox-media:${mediaFile.id}`,
+        jobId: `inbox-media-${mediaFile.id}`,
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: { count: 1000 },

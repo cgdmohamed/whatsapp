@@ -48,7 +48,7 @@ export function ImportDetailDialog({ job, onOpenChange }: ImportDetailDialogProp
                 <TableRow>
                   <TableHead className="w-16">{t('imports.row')}</TableHead>
                   <TableHead>{t('imports.phone')}</TableHead>
-                  <TableHead>{t('imports.status')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
                   <TableHead>{t('imports.errors')}</TableHead>
                 </TableRow>
               </TableHeader>

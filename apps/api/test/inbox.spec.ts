@@ -446,9 +446,21 @@ describe('InboxMediaService authorization', () => {
     await expect(buildService().getForSignedStream('media-1', Date.now() - 1000, 'anything')).rejects.toThrow(ERROR_CODES.INBOX_MEDIA_SIGNATURE_INVALID);
   });
 
+  it('rejects minting a signed URL when the actor cannot access the conversation', async () => {
+    accessService.getAccessibleConversation.mockRejectedValue(new ForbiddenException(ERROR_CODES.INBOX_ACCESS_DENIED));
+    await expect(buildService().createSignedUrl(
+      { id: 'u2', name: 'A', email: 'a@x.com', role: 'AGENT', status: 'ACTIVE', preferredLanguage: 'ar' },
+      'media-1',
+    )).rejects.toThrow(ERROR_CODES.INBOX_ACCESS_DENIED);
+  });
+
   it('streams a file whose signature verifies', async () => {
     const service = buildService();
-    const signed = service.createSignedUrl('media-1');
+    accessService.getAccessibleConversation.mockResolvedValue({ id: 'conv-1' });
+    const signed = await service.createSignedUrl(
+      { id: 'u2', name: 'A', email: 'a@x.com', role: 'AGENT', status: 'ACTIVE', preferredLanguage: 'ar' },
+      'media-1',
+    );
     const match = /expires=(\d+)&token=([0-9a-f]+)/.exec(signed.url);
     const result = await service.getForSignedStream('media-1', Number(match?.[1]), match?.[2] ?? '');
     expect(result.contentType).toBe('image/jpeg');
