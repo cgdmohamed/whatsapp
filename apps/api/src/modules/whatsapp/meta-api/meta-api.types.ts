@@ -61,6 +61,26 @@ export interface MediaInfo {
   filename?: string;
 }
 
+export interface MediaDownloadInfo {
+  id: string;
+  url: string;
+  mime_type?: string;
+  sha256?: string;
+  file_size?: number;
+  filename?: string;
+}
+
+export interface UploadMediaInput {
+  phoneNumberId: string;
+  file: Buffer;
+  mimeType: string;
+  filename: string;
+}
+
+export interface UploadMediaResult {
+  id: string;
+}
+
 export interface TestConnectionResult {
   wabaId?: string;
   accountId?: string;

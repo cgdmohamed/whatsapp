@@ -223,6 +223,16 @@ export class WhatsAppService {
     return client.getMediaInfo(mediaId);
   }
 
+  async getMedia(mediaId: string): Promise<import('./meta-api/meta-api.types').MediaDownloadInfo> {
+    const client = await this.buildClient();
+    return client.getMedia(mediaId);
+  }
+
+  async uploadMedia(input: import('./meta-api/meta-api.types').UploadMediaInput): Promise<import('./meta-api/meta-api.types').UploadMediaResult> {
+    const client = await this.buildClient();
+    return client.uploadMedia(input);
+  }
+
   async downloadMedia(url: string): Promise<DownloadMediaResult> {
     const client = await this.buildClient();
     return client.downloadMedia(url);

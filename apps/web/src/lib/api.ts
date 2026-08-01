@@ -69,11 +69,12 @@ export async function apiFetch<T>(
   retried = false,
 ): Promise<T> {
   const isAuthPath = path.startsWith('/auth/');
+  const isJsonBody = typeof options.body === 'string';
   const response = await fetch(buildUrl(path), {
     ...options,
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   });

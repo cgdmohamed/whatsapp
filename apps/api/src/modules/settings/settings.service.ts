@@ -31,6 +31,9 @@ export class SettingsService {
       sessionDurationMinutes: this.readNumber(map, 'sessionDurationMinutes'),
       campaignSendingConcurrency: this.readNumber(map, 'campaignSendingConcurrency'),
       campaignMessagesPerMinute: this.readNumber(map, 'campaignMessagesPerMinute'),
+      agentsCanViewUnassignedConversations: this.readBoolean(map, 'agentsCanViewUnassignedConversations'),
+      serviceWindowHours: this.readNumber(map, 'serviceWindowHours'),
+      maxInboxMediaSizeMb: this.readNumber(map, 'maxInboxMediaSizeMb'),
     };
   }
 
@@ -94,5 +97,13 @@ export class SettingsService {
     }
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : (DEFAULT_SETTINGS[key as keyof DefaultSettings] as number);
+  }
+
+  private readBoolean(map: Map<string, string | undefined>, key: SettingsKey): boolean {
+    const value = map.get(key);
+    if (value === undefined) {
+      return Boolean(DEFAULT_SETTINGS[key as keyof DefaultSettings]);
+    }
+    return value === 'true' || value === '1' || value === 'yes';
   }
 }

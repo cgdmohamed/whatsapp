@@ -30,6 +30,10 @@ export class UsersDao {
     return this.db.query.users.findFirst({ where: eq(users.email, email.toLowerCase()) });
   }
 
+  async listActive(): Promise<UserRow[]> {
+    return this.db.select().from(users).where(eq(users.status, 'ACTIVE')).orderBy(asc(users.name));
+  }
+
   insert(data: NewUser): Promise<UserRow[]> {
     return this.db.insert(users).values(data).returning();
   }

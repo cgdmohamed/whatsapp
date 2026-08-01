@@ -32,6 +32,13 @@ import type {
   MessageDirection,
   MessageRowStatus,
   ConversationStatus,
+  ConversationPriority,
+  QuickReplyVisibility,
+  MediaFileDirection,
+  MediaFileSource,
+  MediaFileStatus,
+  ExportJobType,
+  ExportJobStatus,
 } from '@wa/shared';
 
 export const users = pgTable('users', {
@@ -458,17 +465,117 @@ export const conversations = pgTable(
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
     whatsappPhoneNumberId: varchar('whatsapp_phone_number_id', { length: 100 }),
-    status: varchar('status', { length: 20 }).$type<ConversationStatus>().notNull().default('OPEN'),
+    status: varchar('status', { length: 30 }).$type<ConversationStatus>().notNull().default('NEW'),
+    priority: varchar('priority', { length: 20 }).$type<ConversationPriority>().notNull().default('NORMAL'),
+    assignedUserId: uuid('assigned_user_id').references(() => users.id, { onDelete: 'set null' }),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }),
+    lastMessageId: uuid('last_message_id'),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    lastInboundMessageAt: timestamp('last_inbound_message_at', { withTimezone: true }),
+    lastOutboundMessageAt: timestamp('last_outbound_message_at', { withTimezone: true }),
+    unreadCount: integer('unread_count').notNull().default(0),
+    serviceWindowExpiresAt: timestamp('service_window_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
   },
   (table) => [
     index('conversations_contact_idx').on(table.contactId),
     index('conversations_status_idx').on(table.status),
+    index('conversations_priority_idx').on(table.priority),
+    index('conversations_assigned_idx').on(table.assignedUserId),
+    index('conversations_last_message_at_idx').on(table.lastMessageAt),
+    index('conversations_unread_idx').on(table.unreadCount),
+  ],
+);
+
+export const conversationAssignments = pgTable(
+  'conversation_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    fromUserId: uuid('from_user_id').references(() => users.id, { onDelete: 'set null' }),
+    toUserId: uuid('to_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    assignedByUserId: uuid('assigned_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('conversation_assignments_conversation_idx').on(table.conversationId), index('conversation_assignments_created_at_idx').on(table.createdAt)],
+);
+
+export const internalNotes = pgTable(
+  'internal_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [index('internal_notes_conversation_idx').on(table.conversationId)],
+);
+
+export const quickReplies = pgTable(
+  'quick_replies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: varchar('title', { length: 120 }).notNull(),
+    content: text('content').notNull(),
+    language: varchar('language', { length: 2 }).$type<Language>().notNull().default('ar'),
+    category: varchar('category', { length: 60 }),
+    visibility: varchar('visibility', { length: 10 }).$type<QuickReplyVisibility>().notNull().default('PERSONAL'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('quick_replies_visibility_language_idx').on(table.visibility, table.language),
+    index('quick_replies_created_by_idx').on(table.createdByUserId),
+  ],
+);
+
+export const mediaFiles = pgTable(
+  'media_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+    direction: varchar('direction', { length: 10 }).$type<MediaFileDirection>().notNull(),
+    source: varchar('source', { length: 20 }).$type<MediaFileSource>().notNull(),
+    metaMediaId: varchar('meta_media_id', { length: 200 }),
+    originalFilename: varchar('original_filename', { length: 255 }),
+    storedFilename: varchar('stored_filename', { length: 255 }),
+    contentType: varchar('content_type', { length: 120 }),
+    sizeBytes: integer('size_bytes'),
+    sha256: varchar('sha256', { length: 64 }),
+    status: varchar('status', { length: 20 }).$type<MediaFileStatus>().notNull().default('PENDING'),
+    errorMessage: text('error_message'),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('media_files_message_idx').on(table.messageId),
+    index('media_files_conversation_idx').on(table.conversationId),
   ],
 );
 
@@ -557,6 +664,7 @@ export const campaignRecipients = pgTable(
     uniqueIndex('campaign_recipients_idempotency_key_idx').on(table.idempotencyKey),
     index('campaign_recipients_campaign_status_idx').on(table.campaignId, table.status),
     index('campaign_recipients_meta_message_id_idx').on(table.metaMessageId),
+    index('campaign_recipients_failure_code_idx').on(table.failureCode),
   ],
 );
 
@@ -597,6 +705,7 @@ export const messages = pgTable(
     index('messages_campaign_idx').on(table.campaignId),
     index('messages_campaign_recipient_idx').on(table.campaignRecipientId),
     index('messages_status_idx').on(table.status),
+    index('messages_created_at_idx').on(table.createdAt),
   ],
 );
 
@@ -622,8 +731,42 @@ export const messageStatusEvents = pgTable(
   ],
 );
 
+export const exportJobs = pgTable(
+  'export_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: varchar('type', { length: 40 }).$type<ExportJobType>().notNull(),
+    filters: jsonb('filters').$type<Record<string, unknown> | null>(),
+    status: varchar('status', { length: 20 }).$type<ExportJobStatus>().notNull().default('PENDING'),
+    fileName: varchar('file_name', { length: 255 }),
+    totalRows: integer('total_rows').notNull().default(0),
+    errorMessage: text('error_message'),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    downloadCount: integer('download_count').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('export_jobs_created_by_idx').on(table.createdByUserId),
+    index('export_jobs_type_status_idx').on(table.type, table.status),
+    index('export_jobs_created_at_idx').on(table.createdAt),
+  ],
+);
+
 export type ConversationRow = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
+export type ConversationAssignmentRow = typeof conversationAssignments.$inferSelect;
+export type NewConversationAssignment = typeof conversationAssignments.$inferInsert;
+export type InternalNoteRow = typeof internalNotes.$inferSelect;
+export type NewInternalNote = typeof internalNotes.$inferInsert;
+export type QuickReplyRow = typeof quickReplies.$inferSelect;
+export type NewQuickReply = typeof quickReplies.$inferInsert;
+export type MediaFileRow = typeof mediaFiles.$inferSelect;
+export type NewMediaFile = typeof mediaFiles.$inferInsert;
 export type CampaignRow = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
 export type CampaignRecipientRow = typeof campaignRecipients.$inferSelect;
@@ -632,3 +775,5 @@ export type MessageRow = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type MessageStatusEventRow = typeof messageStatusEvents.$inferSelect;
 export type NewMessageStatusEvent = typeof messageStatusEvents.$inferInsert;
+export type ExportJobRow = typeof exportJobs.$inferSelect;
+export type NewExportJob = typeof exportJobs.$inferInsert;

@@ -141,6 +141,9 @@ export const settingsSchema = z.object({
   sessionDurationMinutes: z.coerce.number().int().min(5).max(1440),
   campaignSendingConcurrency: z.coerce.number().int().min(1).max(100),
   campaignMessagesPerMinute: z.coerce.number().int().min(1).max(60000),
+  agentsCanViewUnassignedConversations: z.coerce.boolean().default(false),
+  serviceWindowHours: z.coerce.number().int().min(1).max(168),
+  maxInboxMediaSizeMb: z.coerce.number().int().min(1).max(64),
 });
 export type SettingsDto = z.infer<typeof settingsSchema>;
 
@@ -1052,8 +1055,274 @@ export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number];
 export const OPT_OUT_KEYWORDS = ['STOP', 'UNSUBSCRIBE', 'إلغاء', 'توقف', 'إيقاف الرسائل', 'OPT_OUT'] as const;
 export const OPT_OUT_QUICK_REPLY_PAYLOAD = 'OPT_OUT';
 
-export const CONVERSATION_STATUSES = ['OPEN', 'CLOSED'] as const;
+export const CONVERSATION_STATUSES = ['NEW', 'OPEN', 'WAITING_FOR_CUSTOMER', 'FOLLOW_UP', 'CLOSED'] as const;
 export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
+export const CONVERSATION_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+export type ConversationPriority = (typeof CONVERSATION_PRIORITIES)[number];
+
+export const QUICK_REPLY_VISIBILITIES = ['PERSONAL', 'TEAM'] as const;
+export type QuickReplyVisibility = (typeof QUICK_REPLY_VISIBILITIES)[number];
+
+export const MEDIA_FILE_DIRECTIONS = ['INBOUND', 'OUTBOUND'] as const;
+export type MediaFileDirection = (typeof MEDIA_FILE_DIRECTIONS)[number];
+
+export const MEDIA_FILE_SOURCES = ['INBOUND_META', 'OUTBOUND_UPLOAD'] as const;
+export type MediaFileSource = (typeof MEDIA_FILE_SOURCES)[number];
+
+export const MEDIA_FILE_STATUSES = ['PENDING', 'STORED', 'FAILED', 'SENT'] as const;
+export type MediaFileStatus = (typeof MEDIA_FILE_STATUSES)[number];
+
+export const INBOX_EVENT_TYPES = ['message', 'status', 'conversation', 'note', 'read'] as const;
+export type InboxEventType = (typeof INBOX_EVENT_TYPES)[number];
+
+export interface InboxRealtimeEvent {
+  type: InboxEventType;
+  conversationId: string;
+  payload: unknown;
+  at: string;
+}
+
+export const conversationSummarySchema = z.object({
+  id: z.string().uuid(),
+  contactId: z.string().uuid(),
+  whatsappPhoneNumberId: z.string().nullable(),
+  status: z.enum(CONVERSATION_STATUSES),
+  priority: z.enum(CONVERSATION_PRIORITIES),
+  assignedUserId: z.string().uuid().nullable(),
+  assignedUserName: z.string().nullable(),
+  lastMessageId: z.string().uuid().nullable(),
+  lastMessageAt: z.string().nullable(),
+  lastInboundMessageAt: z.string().nullable(),
+  lastOutboundMessageAt: z.string().nullable(),
+  unreadCount: z.number().int().nonnegative(),
+  serviceWindowExpiresAt: z.string().nullable(),
+  closedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  contact: z.object({
+    id: z.string().uuid(),
+    phoneE164: z.string(),
+    firstName: z.string().nullable(),
+    lastName: z.string().nullable(),
+    displayName: z.string().nullable(),
+    language: z.enum(LANGUAGES).nullable(),
+    status: z.enum(CONTACT_STATUSES),
+    suppressed: z.boolean().default(false),
+    optInStatus: z.enum(OPT_IN_STATUSES).default('UNKNOWN'),
+  }),
+  lastMessagePreview: z.string().nullable(),
+});
+export type ConversationSummaryDto = z.infer<typeof conversationSummarySchema>;
+
+export const conversationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  search: z.string().trim().max(255).optional(),
+  status: z.enum(CONVERSATION_STATUSES).optional(),
+  assignedUserId: ID_SCHEMA.optional(),
+  unassigned: z.enum(['yes', 'no']).optional(),
+  unread: z.enum(['yes', 'no']).optional(),
+  priority: z.enum(CONVERSATION_PRIORITIES).optional(),
+  dateFrom: z.string().trim().optional(),
+  dateTo: z.string().trim().optional(),
+  sortBy: z.enum(['lastMessageAt', 'createdAt', 'updatedAt', 'unreadCount']).default('lastMessageAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+export type ConversationQuery = z.infer<typeof conversationQuerySchema>;
+
+export const paginatedConversationsSchema = paginatedResponseSchema(conversationSummarySchema);
+export type PaginatedConversations = z.infer<typeof paginatedConversationsSchema>;
+
+export const assignmentHistorySchema = z.object({
+  id: z.string().uuid(),
+  conversationId: z.string().uuid(),
+  fromUserId: z.string().uuid().nullable(),
+  toUserId: z.string().uuid(),
+  assignedByUserId: z.string().uuid().nullable(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+  fromUserName: z.string().nullable(),
+  toUserName: z.string().nullable(),
+  assignedByName: z.string().nullable(),
+});
+export type AssignmentHistoryDto = z.infer<typeof assignmentHistorySchema>;
+
+export const conversationRecentCampaignSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: z.enum(CAMPAIGN_STATUSES),
+  sentAt: z.string().nullable(),
+});
+export type ConversationRecentCampaignDto = z.infer<typeof conversationRecentCampaignSchema>;
+
+export const internalNoteSchema = z.object({
+  id: z.string().uuid(),
+  conversationId: z.string().uuid(),
+  userId: z.string().uuid(),
+  userName: z.string(),
+  content: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  deletedAt: z.string().nullable(),
+});
+export type InternalNoteDto = z.infer<typeof internalNoteSchema>;
+
+export const conversationDetailSchema = conversationSummarySchema.extend({
+  assignedUser: z.object({ id: z.string().uuid(), name: z.string(), email: z.string(), role: z.enum(ROLES) }).nullable(),
+  tags: z.array(tagSummarySchema),
+  lists: z.array(contactListSummarySchema),
+  consent: z
+    .object({
+      status: z.enum(OPT_IN_STATUSES),
+      source: z.string().nullable(),
+      obtainedAt: z.string(),
+      expiresAt: z.string().nullable(),
+    })
+    .nullable(),
+  suppression: z.array(suppressionEntrySchema),
+  recentCampaigns: z.array(conversationRecentCampaignSchema),
+  assignmentHistory: z.array(assignmentHistorySchema),
+  internalNotes: z.array(internalNoteSchema),
+});
+export type ConversationDetailDto = z.infer<typeof conversationDetailSchema>;
+
+export const conversationMessagesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.string().trim().optional(),
+});
+export type ConversationMessagesQuery = z.infer<typeof conversationMessagesQuerySchema>;
+
+export const paginatedConversationMessagesSchema = paginatedResponseSchema(z.lazy(() => messageSchema));
+export type PaginatedConversationMessages = z.infer<typeof paginatedConversationMessagesSchema>;
+
+export const replyInputSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('TEXT'),
+    textContent: z.string().trim().min(1, 'INBOX_TEXT_REQUIRED').max(4096, 'INBOX_TEXT_TOO_LONG'),
+  }),
+  z.object({
+    type: z.literal('IMAGE'),
+    mediaFileId: ID_SCHEMA,
+    caption: z.string().trim().max(1024).optional(),
+  }),
+  z.object({
+    type: z.literal('DOCUMENT'),
+    mediaFileId: ID_SCHEMA,
+    caption: z.string().trim().max(1024).optional(),
+  }),
+  z.object({
+    type: z.literal('TEMPLATE'),
+    templateId: ID_SCHEMA,
+    language: z.string().trim().min(2).max(10).optional(),
+    parameters: z.array(z.string().max(500)).max(30).optional(),
+  }),
+]);
+export type ReplyInput = z.infer<typeof replyInputSchema>;
+
+export const assignConversationSchema = z.object({
+  userId: ID_SCHEMA,
+  reason: z.string().trim().max(500).optional(),
+});
+export type AssignConversationInput = z.infer<typeof assignConversationSchema>;
+
+export const claimConversationSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});
+export type ClaimConversationInput = z.infer<typeof claimConversationSchema>;
+
+export const conversationStatusInputSchema = z.object({
+  status: z.enum(CONVERSATION_STATUSES),
+});
+export type ConversationStatusInput = z.infer<typeof conversationStatusInputSchema>;
+
+export const conversationPriorityInputSchema = z.object({
+  priority: z.enum(CONVERSATION_PRIORITIES),
+});
+export type ConversationPriorityInput = z.infer<typeof conversationPriorityInputSchema>;
+
+export const conversationTagsInputSchema = z.object({
+  tagIds: z.array(ID_SCHEMA).min(1, 'AT_LEAST_ONE_ID_REQUIRED').max(50),
+});
+export type ConversationTagsInput = z.infer<typeof conversationTagsInputSchema>;
+
+export const createInternalNoteSchema = z.object({
+  content: z.string().trim().min(1, 'INBOX_NOTE_REQUIRED').max(4000, 'INBOX_NOTE_TOO_LONG'),
+});
+export type CreateInternalNoteInput = z.infer<typeof createInternalNoteSchema>;
+
+export const updateInternalNoteSchema = z.object({
+  content: z.string().trim().min(1, 'INBOX_NOTE_REQUIRED').max(4000, 'INBOX_NOTE_TOO_LONG'),
+});
+export type UpdateInternalNoteInput = z.infer<typeof updateInternalNoteSchema>;
+
+export const mediaFileSchema = z.object({
+  id: z.string().uuid(),
+  messageId: z.string().uuid().nullable(),
+  conversationId: z.string().uuid().nullable(),
+  direction: z.enum(MEDIA_FILE_DIRECTIONS),
+  source: z.enum(MEDIA_FILE_SOURCES),
+  metaMediaId: z.string().nullable(),
+  originalFilename: z.string().nullable(),
+  storedFilename: z.string().nullable(),
+  contentType: z.string().nullable(),
+  sizeBytes: z.number().int().nonnegative().nullable(),
+  sha256: z.string().nullable(),
+  status: z.enum(MEDIA_FILE_STATUSES),
+  errorMessage: z.string().nullable(),
+  uploadedByUserId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+});
+export type MediaFileDto = z.infer<typeof mediaFileSchema>;
+
+export const quickReplySchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  content: z.string(),
+  language: z.enum(LANGUAGES),
+  category: z.string().nullable(),
+  visibility: z.enum(QUICK_REPLY_VISIBILITIES),
+  createdByUserId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+});
+export type QuickReplyDto = z.infer<typeof quickReplySchema>;
+
+export const quickReplyQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  search: z.string().trim().max(255).optional(),
+  language: z.enum(LANGUAGES).optional(),
+  category: z.string().trim().max(60).optional(),
+  visibility: z.enum(QUICK_REPLY_VISIBILITIES).optional(),
+  includeArchived: z.enum(['yes', 'no']).optional(),
+});
+export type QuickReplyQuery = z.infer<typeof quickReplyQuerySchema>;
+
+export const paginatedQuickRepliesSchema = paginatedResponseSchema(quickReplySchema);
+export type PaginatedQuickReplies = z.infer<typeof paginatedQuickRepliesSchema>;
+
+export const createQuickReplySchema = z.object({
+  title: z.string().trim().min(1, 'NAME_REQUIRED').max(120, 'INBOX_QUICK_REPLY_TITLE_TOO_LONG'),
+  content: z.string().trim().min(1, 'INBOX_QUICK_REPLY_CONTENT_REQUIRED').max(4000, 'INBOX_QUICK_REPLY_CONTENT_TOO_LONG'),
+  language: z.enum(LANGUAGES).default(DEFAULT_LANGUAGE),
+  category: z.string().trim().max(60).optional(),
+  visibility: z.enum(QUICK_REPLY_VISIBILITIES).default('PERSONAL'),
+});
+export type CreateQuickReplyInput = z.infer<typeof createQuickReplySchema>;
+
+export const updateQuickReplySchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    content: z.string().trim().min(1).max(4000).optional(),
+    language: z.enum(LANGUAGES).optional(),
+    category: z.string().trim().max(60).nullable().optional(),
+    visibility: z.enum(QUICK_REPLY_VISIBILITIES).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: 'AT_LEAST_ONE_FIELD_REQUIRED' });
+export type UpdateQuickReplyInput = z.infer<typeof updateQuickReplySchema>;
 
 export const audienceFilterSchema = z.object({
   status: z.enum(CONTACT_STATUSES).optional(),
@@ -1279,6 +1548,7 @@ export const messageSchema = z.object({
   errorMessage: z.string().nullable(),
   sentByUserId: z.string().uuid().nullable(),
   isTest: z.boolean().default(false),
+  mediaFile: z.lazy(() => mediaFileSchema.nullable().optional()),
   createdAt: z.string(),
   sentAt: z.string().nullable(),
   deliveredAt: z.string().nullable(),
@@ -1365,6 +1635,395 @@ export const AUDIT_ACTIONS = {
   CAMPAIGN_ARCHIVE: 'campaign.archive',
   CAMPAIGN_TEST_SEND: 'campaign.test_send',
   CAMPAIGN_RECIPIENT_OPT_OUT: 'campaign.recipient_opt_out',
+  INBOX_MESSAGE_SEND: 'inbox.message_send',
+  INBOX_MESSAGE_RETRY: 'inbox.message_retry',
+  INBOX_CONVERSATION_ASSIGN: 'inbox.conversation_assign',
+  INBOX_CONVERSATION_CLAIM: 'inbox.conversation_claim',
+  INBOX_CONVERSATION_STATUS_CHANGE: 'inbox.conversation_status_change',
+  INBOX_CONVERSATION_PRIORITY_CHANGE: 'inbox.conversation_priority_change',
+  INBOX_CONVERSATION_MARK_READ: 'inbox.conversation_mark_read',
+  INBOX_CONVERSATION_MARK_UNREAD: 'inbox.conversation_mark_unread',
+  INBOX_CONVERSATION_CLOSE: 'inbox.conversation_close',
+  INBOX_CONVERSATION_REOPEN: 'inbox.conversation_reopen',
+  INBOX_CONVERSATION_TAGS_ADD: 'inbox.conversation_tags_add',
+  INBOX_NOTE_CREATE: 'inbox.note_create',
+  INBOX_NOTE_UPDATE: 'inbox.note_update',
+  INBOX_NOTE_DELETE: 'inbox.note_delete',
+  INBOX_QUICK_REPLY_CREATE: 'inbox.quick_reply_create',
+  INBOX_QUICK_REPLY_UPDATE: 'inbox.quick_reply_update',
+  INBOX_QUICK_REPLY_ARCHIVE: 'inbox.quick_reply_archive',
+  INBOX_MEDIA_UPLOAD: 'inbox.media_upload',
+  INBOX_OPT_OUT: 'inbox.opt_out',
+  EXPORT_CREATE: 'export.create',
+  EXPORT_FAILED: 'export.failed',
+  OPERATIONS_RETRY: 'operations.retry_failed',
+  OPERATIONS_DRAIN: 'operations.drain_failed',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
+
+// ---------- Reports ----------
+
+export const TREND_GRANULARITIES = ['day', 'week', 'month'] as const;
+export type TrendGranularity = (typeof TREND_GRANULARITIES)[number];
+
+export const dateRangeQuerySchema = z.object({
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+});
+export type DateRangeQuery = z.infer<typeof dateRangeQuerySchema>;
+
+export const dashboardQuerySchema = dateRangeQuerySchema.extend({
+  granularity: z.enum(TREND_GRANULARITIES).default('day'),
+});
+export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
+
+export const dashboardSummarySchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  totals: z.object({
+    contacts: z.number().int().nonnegative(),
+    newContacts: z.number().int().nonnegative(),
+    conversations: z.number().int().nonnegative(),
+    openConversations: z.number().int().nonnegative(),
+    unreadConversations: z.number().int().nonnegative(),
+    messagesSent: z.number().int().nonnegative(),
+    messagesReceived: z.number().int().nonnegative(),
+    campaignsRun: z.number().int().nonnegative(),
+    recipientsDelivered: z.number().int().nonnegative(),
+    failedSends: z.number().int().nonnegative(),
+    optedOut: z.number().int().nonnegative(),
+  }),
+  rates: z.object({
+    deliveryRate: z.number().min(0).max(1),
+    readRate: z.number().min(0).max(1),
+    replyRate: z.number().min(0).max(1),
+    failureRate: z.number().min(0).max(1),
+  }),
+});
+export type DashboardSummaryDto = z.infer<typeof dashboardSummarySchema>;
+
+export const trendPointSchema = z.object({
+  bucket: z.string(),
+  messagesSent: z.number().int().nonnegative(),
+  messagesReceived: z.number().int().nonnegative(),
+  conversationsOpened: z.number().int().nonnegative(),
+  contactsAdded: z.number().int().nonnegative(),
+});
+export type TrendPoint = z.infer<typeof trendPointSchema>;
+
+export const dashboardTrendsSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  granularity: z.enum(TREND_GRANULARITIES),
+  points: z.array(trendPointSchema),
+});
+export type DashboardTrendsDto = z.infer<typeof dashboardTrendsSchema>;
+
+export const campaignPerformanceRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: z.enum(CAMPAIGN_STATUSES),
+  audienceType: z.enum(AUDIENCE_TYPES),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  totalRecipients: z.number().int().nonnegative(),
+  sentRecipients: z.number().int().nonnegative(),
+  deliveredRecipients: z.number().int().nonnegative(),
+  readRecipients: z.number().int().nonnegative(),
+  repliedRecipients: z.number().int().nonnegative(),
+  failedRecipients: z.number().int().nonnegative(),
+  optedOutRecipients: z.number().int().nonnegative(),
+  deliveryRate: z.number().min(0).max(1),
+  readRate: z.number().min(0).max(1),
+  replyRate: z.number().min(0).max(1),
+  failureRate: z.number().min(0).max(1),
+});
+export type CampaignPerformanceRow = z.infer<typeof campaignPerformanceRowSchema>;
+
+export const campaignPerformanceQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(255).optional(),
+  status: z.enum(CAMPAIGN_STATUSES).optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+  sortBy: z.enum(['name', 'status', 'createdAt', 'totalRecipients', 'deliveryRate', 'readRate']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+export type CampaignPerformanceQuery = z.infer<typeof campaignPerformanceQuerySchema>;
+
+export const paginatedCampaignPerformanceSchema = paginatedResponseSchema(campaignPerformanceRowSchema);
+export type PaginatedCampaignPerformance = z.infer<typeof paginatedCampaignPerformanceSchema>;
+
+export const failureBucketSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  count: z.number().int().nonnegative(),
+  lastOccurredAt: z.string().nullable(),
+});
+export type FailureBucket = z.infer<typeof failureBucketSchema>;
+
+export const recentFailureSchema = z.object({
+  id: z.string().uuid(),
+  campaignName: z.string().nullable(),
+  phoneE164: z.string().nullable(),
+  code: z.string().nullable(),
+  message: z.string().nullable(),
+  failedAt: z.string(),
+});
+export type RecentFailure = z.infer<typeof recentFailureSchema>;
+
+export const failureAnalysisSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  totalFailures: z.number().int().nonnegative(),
+  buckets: z.array(failureBucketSchema),
+  recentFailures: z.array(recentFailureSchema),
+});
+export type FailureAnalysisDto = z.infer<typeof failureAnalysisSchema>;
+
+export const failureAnalysisQuerySchema = dateRangeQuerySchema.extend({
+  code: z.string().trim().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+export type FailureAnalysisQuery = z.infer<typeof failureAnalysisQuerySchema>;
+
+export const inboxPerformanceRowSchema = z.object({
+  userId: z.string().uuid(),
+  name: z.string(),
+  email: z.string(),
+  conversationsAssigned: z.number().int().nonnegative(),
+  conversationsClosed: z.number().int().nonnegative(),
+  messagesSent: z.number().int().nonnegative(),
+  messagesReceived: z.number().int().nonnegative(),
+  notesCreated: z.number().int().nonnegative(),
+  avgFirstResponseMinutes: z.number().nonnegative().nullable(),
+  avgHandleMinutes: z.number().nonnegative().nullable(),
+});
+export type InboxPerformanceRow = z.infer<typeof inboxPerformanceRowSchema>;
+
+export const inboxPerformanceQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  userId: ID_SCHEMA.optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+  sortBy: z
+    .enum(['name', 'conversationsAssigned', 'conversationsClosed', 'messagesSent', 'avgFirstResponseMinutes', 'avgHandleMinutes'])
+    .default('conversationsAssigned'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+export type InboxPerformanceQuery = z.infer<typeof inboxPerformanceQuerySchema>;
+
+export const paginatedInboxPerformanceSchema = paginatedResponseSchema(inboxPerformanceRowSchema);
+export type PaginatedInboxPerformance = z.infer<typeof paginatedInboxPerformanceSchema>;
+
+export const contactReportRowSchema = z.object({
+  id: z.string().uuid(),
+  phoneE164: z.string(),
+  displayName: z.string().nullable(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  email: z.string().nullable(),
+  company: z.string().nullable(),
+  language: z.enum(LANGUAGES).nullable(),
+  phoneCountry: z.string().nullable(),
+  status: z.enum(CONTACT_STATUSES),
+  source: z.string().nullable(),
+  optInStatus: z.enum(OPT_IN_STATUSES),
+  suppressed: z.boolean(),
+  messagesInbound: z.number().int().nonnegative(),
+  messagesOutbound: z.number().int().nonnegative(),
+  campaignDeliveries: z.number().int().nonnegative(),
+  lastInboundMessageAt: z.string().nullable(),
+  lastOutboundMessageAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type ContactReportRow = z.infer<typeof contactReportRowSchema>;
+
+export const contactReportQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(255).optional(),
+  status: z.enum(CONTACT_STATUSES).optional(),
+  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).optional(),
+  language: z.enum(LANGUAGES).optional(),
+  source: z.string().trim().max(100).optional(),
+  tagId: ID_SCHEMA.optional(),
+  listId: ID_SCHEMA.optional(),
+  optInStatus: z.enum(OPT_IN_STATUSES).optional(),
+  suppressed: z.enum(['yes', 'no']).optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+  sortBy: z
+    .enum(['createdAt', 'displayName', 'phoneE164', 'messagesInbound', 'messagesOutbound', 'campaignDeliveries', 'lastInboundMessageAt'])
+    .default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+export type ContactReportQuery = z.infer<typeof contactReportQuerySchema>;
+
+export const paginatedContactReportSchema = paginatedResponseSchema(contactReportRowSchema);
+export type PaginatedContactReport = z.infer<typeof paginatedContactReportSchema>;
+
+export const contactBreakdownSchema = z.object({
+  totalContacts: z.number().int().nonnegative(),
+  byStatus: z.record(z.string(), z.number().int().nonnegative()),
+  byCountry: z.record(z.string(), z.number().int().nonnegative()),
+  byLanguage: z.record(z.string(), z.number().int().nonnegative()),
+  bySource: z.record(z.string(), z.number().int().nonnegative()),
+  suppressed: z.number().int().nonnegative(),
+  notSuppressed: z.number().int().nonnegative(),
+  optedIn: z.number().int().nonnegative(),
+  optedOut: z.number().int().nonnegative(),
+  unknownConsent: z.number().int().nonnegative(),
+});
+export type ContactBreakdownDto = z.infer<typeof contactBreakdownSchema>;
+
+// ---------- Exports ----------
+
+export const EXPORT_JOB_TYPES = [
+  'contacts',
+  'campaign-recipients',
+  'campaign-performance',
+  'inbox-performance',
+  'failure-analysis',
+  'audit-log',
+] as const;
+export type ExportJobType = (typeof EXPORT_JOB_TYPES)[number];
+
+export const EXPORT_JOB_STATUSES = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'] as const;
+export type ExportJobStatus = (typeof EXPORT_JOB_STATUSES)[number];
+
+export const exportJobSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(EXPORT_JOB_TYPES),
+  filters: z.record(z.string(), z.unknown()).nullable(),
+  status: z.enum(EXPORT_JOB_STATUSES),
+  fileName: z.string().nullable(),
+  totalRows: z.number().int().nonnegative(),
+  errorMessage: z.string().nullable(),
+  createdByUserId: z.string().uuid(),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  downloadCount: z.number().int().nonnegative(),
+  downloadUrl: z.string().nullable(),
+});
+export type ExportJobDto = z.infer<typeof exportJobSchema>;
+
+export const createExportSchema = z.object({
+  type: z.enum(EXPORT_JOB_TYPES),
+  filters: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+export type CreateExportInput = z.infer<typeof createExportSchema>;
+
+export const exportQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  type: z.enum(EXPORT_JOB_TYPES).optional(),
+  status: z.enum(EXPORT_JOB_STATUSES).optional(),
+});
+export type ExportQuery = z.infer<typeof exportQuerySchema>;
+
+export const paginatedExportsSchema = paginatedResponseSchema(exportJobSchema);
+export type PaginatedExports = z.infer<typeof paginatedExportsSchema>;
+
+// ---------- Audit logs ----------
+
+export const auditLogSchema = z.object({
+  id: z.string().uuid(),
+  actorUserId: z.string().uuid().nullable(),
+  actorName: z.string().nullable(),
+  action: z.string(),
+  entityType: z.string().nullable(),
+  entityId: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type AuditLogDto = z.infer<typeof auditLogSchema>;
+
+export const auditLogQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  action: z.string().trim().max(120).optional(),
+  entityType: z.string().trim().max(120).optional(),
+  actorUserId: ID_SCHEMA.optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+  search: z.string().trim().max(255).optional(),
+});
+export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
+
+export const paginatedAuditLogsSchema = paginatedResponseSchema(auditLogSchema);
+export type PaginatedAuditLogs = z.infer<typeof paginatedAuditLogsSchema>;
+
+// ---------- Operations ----------
+
+export const queueStatusSchema = z.object({
+  name: z.string(),
+  waiting: z.number().int().nonnegative(),
+  active: z.number().int().nonnegative(),
+  delayed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+  paused: z.boolean(),
+  workers: z.number().int().nonnegative(),
+});
+export type QueueStatusDto = z.infer<typeof queueStatusSchema>;
+
+export const systemStatusSchema = z.object({
+  generatedAt: z.string(),
+  uptimeSeconds: z.number().nonnegative(),
+  version: z.string(),
+  database: z.object({
+    up: z.boolean(),
+    latencyMs: z.number().nonnegative().nullable(),
+  }),
+  redis: z.object({
+    up: z.boolean(),
+    latencyMs: z.number().nonnegative().nullable(),
+  }),
+  queues: z.array(queueStatusSchema),
+  webhooks: z.object({
+    received: z.number().int().nonnegative(),
+    queued: z.number().int().nonnegative(),
+    processing: z.number().int().nonnegative(),
+    processed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    ignored: z.number().int().nonnegative(),
+    oldestPendingSeconds: z.number().nonnegative().nullable(),
+  }),
+  whatsapp: z.object({
+    accountStatus: z.enum(WHATSAPP_ACCOUNT_STATUSES).nullable(),
+    lastConnectionTestAt: z.string().nullable(),
+    lastConnectionError: z.string().nullable(),
+    templatesLastSyncedAt: z.string().nullable(),
+    phoneNumbers: z.number().int().nonnegative(),
+  }),
+  inbox: z.object({
+    openConversations: z.number().int().nonnegative(),
+    unreadConversations: z.number().int().nonnegative(),
+    unassignedConversations: z.number().int().nonnegative(),
+  }),
+});
+export type SystemStatusDto = z.infer<typeof systemStatusSchema>;
+
+export const queueOperationSchema = z.object({
+  queue: z.string().trim().min(1).max(120),
+  jobIds: z.array(z.string().trim().min(1).max(200)).max(500).optional(),
+});
+export type QueueOperationInput = z.infer<typeof queueOperationSchema>;
+
+export const queueOperationResultSchema = z.object({
+  queue: z.string(),
+  retried: z.number().int().nonnegative().optional(),
+  removed: z.number().int().nonnegative().optional(),
+  errors: z.array(z.string()),
+});
+export type QueueOperationResultDto = z.infer<typeof queueOperationResultSchema>;

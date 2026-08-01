@@ -26,6 +26,18 @@ export const CAMPAIGN_METRICS_QUEUE_NAME = 'campaign-metrics';
 export const WHATSAPP_STATUS_RECONCILIATION_QUEUE = Symbol('WHATSAPP_STATUS_RECONCILIATION_QUEUE');
 export const WHATSAPP_STATUS_RECONCILIATION_QUEUE_NAME = 'whatsapp-status-reconciliation';
 
+export const INBOX_QUEUE = Symbol('INBOX_QUEUE');
+export const INBOX_QUEUE_NAME = 'whatsapp-inbox';
+
+export const INBOX_SEND_QUEUE = Symbol('INBOX_SEND_QUEUE');
+export const INBOX_SEND_QUEUE_NAME = 'whatsapp-inbox-send';
+
+export const INBOX_MEDIA_QUEUE = Symbol('INBOX_MEDIA_QUEUE');
+export const INBOX_MEDIA_QUEUE_NAME = 'whatsapp-inbox-media';
+
+export const EXPORTS_QUEUE = Symbol('EXPORTS_QUEUE');
+export const EXPORTS_QUEUE_NAME = 'reports-exports';
+
 export const QUEUES = [
   WEBHOOK_QUEUE,
   IMPORTS_QUEUE,
@@ -35,6 +47,10 @@ export const QUEUES = [
   WHATSAPP_MESSAGE_SEND_QUEUE,
   CAMPAIGN_METRICS_QUEUE,
   WHATSAPP_STATUS_RECONCILIATION_QUEUE,
+  INBOX_QUEUE,
+  INBOX_SEND_QUEUE,
+  INBOX_MEDIA_QUEUE,
+  EXPORTS_QUEUE,
 ] as const;
 export type QueueToken = (typeof QUEUES)[number];
 
@@ -49,7 +65,42 @@ export class QueueManager implements OnModuleDestroy {
     @Inject(WHATSAPP_MESSAGE_SEND_QUEUE) private readonly whatsappMessageSendQueue: Queue,
     @Inject(CAMPAIGN_METRICS_QUEUE) private readonly campaignMetricsQueue: Queue,
     @Inject(WHATSAPP_STATUS_RECONCILIATION_QUEUE) private readonly whatsappStatusReconciliationQueue: Queue,
+    @Inject(INBOX_QUEUE) private readonly inboxQueue: Queue,
+    @Inject(INBOX_SEND_QUEUE) private readonly inboxSendQueue: Queue,
+    @Inject(INBOX_MEDIA_QUEUE) private readonly inboxMediaQueue: Queue,
+    @Inject(EXPORTS_QUEUE) private readonly exportsQueue: Queue,
   ) {}
+
+  getQueueByName(name: string): Queue | undefined {
+    switch (name) {
+      case WHATSAPP_WEBHOOK_QUEUE_NAME:
+        return this.webhookQueue;
+      case IMPORTS_QUEUE_NAME:
+        return this.importsQueue;
+      case TEMPLATE_SYNC_QUEUE_NAME:
+        return this.templateSyncQueue;
+      case CAMPAIGN_SCHEDULER_QUEUE_NAME:
+        return this.campaignSchedulerQueue;
+      case CAMPAIGN_RECIPIENT_BUILDER_QUEUE_NAME:
+        return this.campaignRecipientBuilderQueue;
+      case WHATSAPP_MESSAGE_SEND_QUEUE_NAME:
+        return this.whatsappMessageSendQueue;
+      case CAMPAIGN_METRICS_QUEUE_NAME:
+        return this.campaignMetricsQueue;
+      case WHATSAPP_STATUS_RECONCILIATION_QUEUE_NAME:
+        return this.whatsappStatusReconciliationQueue;
+      case INBOX_QUEUE_NAME:
+        return this.inboxQueue;
+      case INBOX_SEND_QUEUE_NAME:
+        return this.inboxSendQueue;
+      case INBOX_MEDIA_QUEUE_NAME:
+        return this.inboxMediaQueue;
+      case EXPORTS_QUEUE_NAME:
+        return this.exportsQueue;
+      default:
+        return undefined;
+    }
+  }
 
   async onModuleDestroy(): Promise<void> {
     await Promise.all([
@@ -61,6 +112,10 @@ export class QueueManager implements OnModuleDestroy {
       this.whatsappMessageSendQueue.close(),
       this.campaignMetricsQueue.close(),
       this.whatsappStatusReconciliationQueue.close(),
+      this.inboxQueue.close(),
+      this.inboxSendQueue.close(),
+      this.inboxMediaQueue.close(),
+      this.exportsQueue.close(),
     ]);
   }
 }
@@ -132,6 +187,38 @@ export class QueueManager implements OnModuleDestroy {
         return new Queue(WHATSAPP_STATUS_RECONCILIATION_QUEUE_NAME, { connection });
       },
     },
+    {
+      provide: INBOX_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(INBOX_QUEUE_NAME, { connection });
+      },
+    },
+    {
+      provide: INBOX_SEND_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(INBOX_SEND_QUEUE_NAME, { connection });
+      },
+    },
+    {
+      provide: INBOX_MEDIA_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(INBOX_MEDIA_QUEUE_NAME, { connection });
+      },
+    },
+    {
+      provide: EXPORTS_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(EXPORTS_QUEUE_NAME, { connection });
+      },
+    },
     QueueManager,
   ],
   exports: [
@@ -143,6 +230,11 @@ export class QueueManager implements OnModuleDestroy {
     WHATSAPP_MESSAGE_SEND_QUEUE,
     CAMPAIGN_METRICS_QUEUE,
     WHATSAPP_STATUS_RECONCILIATION_QUEUE,
+    INBOX_QUEUE,
+    INBOX_SEND_QUEUE,
+    INBOX_MEDIA_QUEUE,
+    EXPORTS_QUEUE,
+    QueueManager,
   ],
 })
 export class QueueModule {}

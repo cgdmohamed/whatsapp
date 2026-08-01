@@ -12,6 +12,7 @@
     "users": "Users",
     "settings": "Settings",
     "auditLog": "Audit Log",
+    "operations": "Operations",
     "whatsapp": "WhatsApp",
     "integrationLogs": "Integration Logs",
     "profile": "Profile",
@@ -32,6 +33,7 @@
     "back": "Back",
     "page": "Page",
     "all": "All",
+    "filterType": "Filter by type",
     "apply": "Apply",
     "clear": "Clear",
     "yes": "Yes",
@@ -415,6 +417,72 @@
       "OPTED_OUT": "Opted out"
     }
   },
+  "inbox": {
+    "title": "Inbox",
+    "description": "Manage conversations in real time",
+    "searchPlaceholder": "Search by name or phone",
+    "statusFilter": "Status",
+    "statusFilterAll": "All statuses",
+    "status": {
+      "NEW": "New",
+      "OPEN": "Open",
+      "WAITING_FOR_CUSTOMER": "Waiting for customer",
+      "FOLLOW_UP": "Follow up",
+      "CLOSED": "Closed"
+    },
+    "unassigned": "Unassigned",
+    "unread": "Unread",
+    "loadError": "Could not load conversations",
+    "noConversations": "No conversations found",
+    "assignedTo": "Assigned to {{name}}",
+    "you": "you",
+    "assigned": "Assigned",
+    "claim": "Claim",
+    "assign": "Assign",
+    "priorityLabel": "Priority",
+    "priority": {
+      "LOW": "Low",
+      "NORMAL": "Normal",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "close": "Close",
+    "reopen": "Reopen",
+    "loadOlder": "Load older messages",
+    "messagesLoadError": "Could not load messages",
+    "noMessages": "No messages yet",
+    "templateMessage": "Template: {{name}}",
+    "file": "File",
+    "messageStatus": {
+      "PENDING": "Sending",
+      "QUEUED": "Queued",
+      "SENT": "Sent",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "REPLIED": "Replied",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
+    },
+    "retry": "Retry",
+    "quickReplies": "Quick replies",
+    "attach": "Attach file",
+    "mediaSent": "Media sent",
+    "replyPlaceholder": "Type a message",
+    "send": "Send",
+    "enterHint": "Enter to send, Shift+Enter for a new line",
+    "internalNotes": "Internal notes",
+    "noNotes": "No notes yet",
+    "notePlaceholder": "Add a private note",
+    "addNote": "Add note",
+    "editTags": "Edit tags",
+    "conversationInfo": "Conversation info",
+    "optInStatus": "Opt-in status",
+    "createdAt": "Created",
+    "serviceWindow": "Service window",
+    "noWindow": "No active window",
+    "recentCampaigns": "Recent campaigns",
+    "selectConversation": "Select a conversation to get started"
+  },
   "webhookEvents": {
     "receivedAt": "Received",
     "eventType": "Event type",
@@ -481,7 +549,42 @@
     "openSettings": "Platform settings",
     "viewProfile": "View profile",
     "membersCount": "{{count}} active users",
-    "accountStatus": "Account status"
+    "accountStatus": "Account status",
+    "range": {
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days"
+    },
+    "granularity": {
+      "day": "Daily",
+      "week": "Weekly",
+      "month": "Monthly"
+    },
+    "trends": "Trends",
+    "trendsDescription": "Activity over the selected period.",
+    "trendsError": "Could not load trend data.",
+    "summaryError": "Could not load dashboard summary.",
+    "customRange": "Custom range",
+    "customRangeHint": "Pick a custom start and end date. Leave empty to use the selected preset.",
+    "from": "From",
+    "to": "To",
+    "stats": {
+      "contacts": "Total contacts",
+      "newContacts": "{{count}} new",
+      "conversations": "Conversations",
+      "openConversations": "{{count}} open",
+      "unreadConversations": "Unread conversations",
+      "messagesSent": "Messages sent",
+      "messagesReceived": "{{count}} received",
+      "campaignsRun": "Campaigns run",
+      "recipientsDelivered": "{{count}} delivered",
+      "failedSends": "Failed sends",
+      "optedOut": "{{count}} opted out",
+      "deliveryRate": "Delivery rate",
+      "failureRate": "{{rate}} failure",
+      "readRate": "Read rate",
+      "replyRate": "{{rate}} reply"
+    }
   },
   "languages": {
     "ar": "العربية",
@@ -756,6 +859,149 @@
       "UPDATED": "Updated",
       "SKIPPED": "Skipped",
       "ERROR": "Error"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Analyze campaign, inbox and contact performance.",
+    "noTrendData": "No trend data for this period.",
+    "tabs": {
+      "campaigns": "Campaigns",
+      "failures": "Failures",
+      "inbox": "Inbox",
+      "contacts": "Contacts",
+      "exports": "Exports"
+    },
+    "performance": {
+      "recipients": "Recipients",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "deliveryRate": "Delivery rate",
+      "readRate": "Read rate",
+      "noData": "No campaign data",
+      "noDataDescription": "Run a campaign to see its performance."
+    },
+    "failures": {
+      "total": "Total failures",
+      "code": "Code",
+      "message": "Message",
+      "count": "Count",
+      "lastOccurredAt": "Last occurred",
+      "none": "No failures recorded"
+    },
+    "inbox": {
+      "agent": "Agent",
+      "conversationsAssigned": "Assigned",
+      "conversationsClosed": "Closed",
+      "messagesSent": "Sent",
+      "firstResponse": "First response",
+      "handle": "Avg handle",
+      "minutesShort": "min",
+      "noData": "No inbox activity yet"
+    },
+    "contacts": {
+      "total": "Total contacts",
+      "optedIn": "Opted in",
+      "suppressed": "Suppressed",
+      "optedOut": "Opted out",
+      "noData": "No contact data yet",
+      "breakdown": {
+        "byStatus": "By status",
+        "byCountry": "By country",
+        "byLanguage": "By language"
+      }
+    },
+    "trend": {
+      "messagesSent": "Messages sent",
+      "messagesReceived": "Messages received",
+      "conversationsOpened": "Conversations opened",
+      "contactsAdded": "Contacts added"
+    }
+  },
+  "exports": {
+    "type": "Type",
+    "status": "Status",
+    "rows": "Rows",
+    "createdAt": "Created",
+    "created": "Export started. It will appear below once ready.",
+    "createFailed": "Could not start the export.",
+    "downloadFailed": "Download failed.",
+    "download": "Download",
+    "none": "No exports yet",
+    "types": {
+      "contacts": "Export contacts",
+      "campaign-recipients": "Export recipients",
+      "campaign-performance": "Export campaign report",
+      "inbox-performance": "Export inbox report",
+      "failure-analysis": "Export failures",
+      "audit-log": "Export audit log"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "RUNNING": "Running",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    }
+  },
+  "auditLog": {
+    "title": "Audit log",
+    "description": "Review who did what across the platform.",
+    "searchPlaceholder": "Search actions, entities…",
+    "createdAt": "Time",
+    "actor": "Actor",
+    "action": "Action",
+    "entity": "Entity",
+    "details": "Details",
+    "noLogs": "No audit entries",
+    "noLogsDescription": "Actions will appear here as they happen."
+  },
+  "operations": {
+    "title": "Operations",
+    "description": "System status, queue health and recovery actions.",
+    "uptime": "Uptime",
+    "database": "Database",
+    "redis": "Redis",
+    "whatsapp": "WhatsApp",
+    "up": "Up",
+    "down": "Down",
+    "paused": "Paused",
+    "active": "Active",
+    "queues": "Queues",
+    "queuesDescription": "Retry or drain failed jobs for each queue.",
+    "queueName": "Queue",
+    "waiting": "Waiting",
+    "activeJobs": "Active",
+    "delayed": "Delayed",
+    "failed": "Failed",
+    "completed": "Completed",
+    "workers": "Workers",
+    "retry": "Retry failed",
+    "drain": "Drain failed",
+    "retried": "Retried {{count}} job(s).",
+    "drained": "Removed {{count}} failed job(s).",
+    "partialError": "Completed with {{count}} error(s).",
+    "actionFailed": "The operation failed.",
+    "phoneNumbers": "{{count}} phone numbers",
+    "webhooks": "Webhooks",
+    "oldestPending": "Oldest pending: {{seconds}}s",
+    "generatedAt": "Generated:",
+    "accountStatus": {
+      "CONNECTED": "Connected",
+      "DISCONNECTED": "Disconnected",
+      "ERROR": "Error"
+    },
+    "webhookStatus": {
+      "RECEIVED": "Received",
+      "QUEUED": "Queued",
+      "PROCESSING": "Processing",
+      "PROCESSED": "Processed",
+      "FAILED": "Failed",
+      "IGNORED": "Ignored"
+    },
+    "inbox": {
+      "open": "Open",
+      "unread": "Unread",
+      "unassigned": "Unassigned"
     }
   }
 }

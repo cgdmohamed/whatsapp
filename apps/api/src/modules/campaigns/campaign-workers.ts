@@ -166,9 +166,9 @@ export class WhatsappStatusReconciliationWorker implements OnModuleDestroy {
       async (job) => {
         const data = job.data as StatusJobData;
         if (data.kind === 'status') {
-          await this.statusService.applyStatusUpdate(data.payload as never, data.webhookEventId);
+          await this.statusService.applyStatusUpdate(data.payload as never);
         } else if (data.kind === 'message') {
-          await this.statusService.handleInboundMessage(data.payload as never, data.webhookEventId);
+          await this.statusService.handleInboundMessage(data.payload as never);
         }
       },
       { connection: redisFromConfig(configService), concurrency: 5 },

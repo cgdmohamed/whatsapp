@@ -12,6 +12,7 @@
     "users": "المستخدمون",
     "settings": "الإعدادات",
     "auditLog": "سجل التدقيق",
+    "operations": "العمليات",
     "whatsapp": "واتساب",
     "integrationLogs": "سجلات التكامل",
     "profile": "الملف الشخصي",
@@ -32,6 +33,7 @@
     "back": "رجوع",
     "page": "صفحة",
     "all": "الكل",
+    "filterType": "تصفية حسب النوع",
     "apply": "تطبيق",
     "clear": "مسح",
     "yes": "نعم",
@@ -415,6 +417,72 @@
       "OPTED_OUT": "انسحب"
     }
   },
+  "inbox": {
+    "title": "صندوق الوارد",
+    "description": "إدارة المحادثات في الوقت الفعلي",
+    "searchPlaceholder": "البحث بالاسم أو الهاتف",
+    "statusFilter": "الحالة",
+    "statusFilterAll": "كل الحالات",
+    "status": {
+      "NEW": "جديد",
+      "OPEN": "مفتوح",
+      "WAITING_FOR_CUSTOMER": "بانتظار العميل",
+      "FOLLOW_UP": "متابعة",
+      "CLOSED": "مغلق"
+    },
+    "unassigned": "غير مُسندة",
+    "unread": "غير مقروءة",
+    "loadError": "تعذّر تحميل المحادثات",
+    "noConversations": "لا توجد محادثات",
+    "assignedTo": "مُسندة إلى {{name}}",
+    "you": "أنت",
+    "assigned": "مُسندة",
+    "claim": "استلام",
+    "assign": "إسناد",
+    "priorityLabel": "الأولوية",
+    "priority": {
+      "LOW": "منخفضة",
+      "NORMAL": "عادية",
+      "HIGH": "عالية",
+      "URGENT": "عاجلة"
+    },
+    "close": "إغلاق",
+    "reopen": "إعادة فتح",
+    "loadOlder": "تحميل الرسائل الأقدم",
+    "messagesLoadError": "تعذّر تحميل الرسائل",
+    "noMessages": "لا توجد رسائل بعد",
+    "templateMessage": "قالب: {{name}}",
+    "file": "ملف",
+    "messageStatus": {
+      "PENDING": "جارٍ الإرسال",
+      "QUEUED": "في قائمة الانتظار",
+      "SENT": "أُرسلت",
+      "DELIVERED": "تم التسليم",
+      "READ": "تمت القراءة",
+      "REPLIED": "تم الرد",
+      "FAILED": "فشلت",
+      "CANCELLED": "أُلغيت"
+    },
+    "retry": "إعادة المحاولة",
+    "quickReplies": "ردود سريعة",
+    "attach": "إرفاق ملف",
+    "mediaSent": "تم إرسال الوسائط",
+    "replyPlaceholder": "اكتب رسالة",
+    "send": "إرسال",
+    "enterHint": "اضغط Enter للإرسال، و Shift+Enter لسطر جديد",
+    "internalNotes": "ملاحظات داخلية",
+    "noNotes": "لا توجد ملاحظات بعد",
+    "notePlaceholder": "أضف ملاحظة خاصة",
+    "addNote": "إضافة ملاحظة",
+    "editTags": "تعديل الوسوم",
+    "conversationInfo": "معلومات المحادثة",
+    "optInStatus": "حالة الاشتراك",
+    "createdAt": "تاريخ الإنشاء",
+    "serviceWindow": "نافذة الخدمة",
+    "noWindow": "لا توجد نافذة نشطة",
+    "recentCampaigns": "الحملات الأخيرة",
+    "selectConversation": "اختر محادثة للبدء"
+  },
   "webhookEvents": {
     "receivedAt": "تاريخ الاستلام",
     "eventType": "نوع الحدث",
@@ -481,7 +549,42 @@
     "openSettings": "إعدادات المنصة",
     "viewProfile": "عرض الملف الشخصي",
     "membersCount": "{{count}} مستخدم نشط",
-    "accountStatus": "حالة الحساب"
+    "accountStatus": "حالة الحساب",
+    "range": {
+      "7d": "آخر 7 أيام",
+      "30d": "آخر 30 يومًا",
+      "90d": "آخر 90 يومًا"
+    },
+    "granularity": {
+      "day": "يومي",
+      "week": "أسبوعي",
+      "month": "شهري"
+    },
+    "trends": "الاتجاهات",
+    "trendsDescription": "النشاط خلال الفترة المحددة.",
+    "trendsError": "تعذر تحميل بيانات الاتجاهات.",
+    "summaryError": "تعذر تحميل ملخص لوحة التحكم.",
+    "customRange": "نطاق مخصص",
+    "customRangeHint": "اختر تاريخ بداية ونهاية مخصصين. اتركه فارغًا لاستخدام النطاق المحدد.",
+    "from": "من",
+    "to": "إلى",
+    "stats": {
+      "contacts": "إجمالي جهات الاتصال",
+      "newContacts": "{{count}} جديدة",
+      "conversations": "المحادثات",
+      "openConversations": "{{count}} مفتوحة",
+      "unreadConversations": "محادثات غير مقروءة",
+      "messagesSent": "الرسائل المرسلة",
+      "messagesReceived": "{{count}} مستلمة",
+      "campaignsRun": "الحملات المنفذة",
+      "recipientsDelivered": "{{count}} تم التسليم",
+      "failedSends": "الإرسال الفاشل",
+      "optedOut": "{{count}} إلغاء اشتراك",
+      "deliveryRate": "معدل التسليم",
+      "failureRate": "{{rate}} فشل",
+      "readRate": "معدل القراءة",
+      "replyRate": "{{rate}} رد"
+    }
   },
   "languages": {
     "ar": "العربية",
@@ -756,6 +859,149 @@
       "UPDATED": "تم التحديث",
       "SKIPPED": "تم التخطي",
       "ERROR": "خطأ"
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "description": "حلل أداء الحملات وصندوق الوارد وجهات الاتصال.",
+    "noTrendData": "لا توجد بيانات اتجاهات لهذه الفترة.",
+    "tabs": {
+      "campaigns": "الحملات",
+      "failures": "الأخطاء",
+      "inbox": "صندوق الوارد",
+      "contacts": "جهات الاتصال",
+      "exports": "التصدير"
+    },
+    "performance": {
+      "recipients": "المستلمون",
+      "sent": "أُرسلت",
+      "delivered": "سُلّمت",
+      "deliveryRate": "معدل التسليم",
+      "readRate": "معدل القراءة",
+      "noData": "لا توجد بيانات حملات",
+      "noDataDescription": "شغّل حملة لعرض أدائها."
+    },
+    "failures": {
+      "total": "إجمالي الأخطاء",
+      "code": "الرمز",
+      "message": "الرسالة",
+      "count": "العدد",
+      "lastOccurredAt": "آخر حدوث",
+      "none": "لا توجد أخطاء مسجلة"
+    },
+    "inbox": {
+      "agent": "الوكيل",
+      "conversationsAssigned": "المُسندة",
+      "conversationsClosed": "المغلقة",
+      "messagesSent": "أُرسلت",
+      "firstResponse": "أول رد",
+      "handle": "متوسط المعالجة",
+      "minutesShort": "د",
+      "noData": "لا يوجد نشاط في صندوق الوارد بعد"
+    },
+    "contacts": {
+      "total": "إجمالي جهات الاتصال",
+      "optedIn": "اشتركوا",
+      "suppressed": "مكبوتون",
+      "optedOut": "ألغوا الاشتراك",
+      "noData": "لا توجد بيانات جهات اتصال بعد",
+      "breakdown": {
+        "byStatus": "حسب الحالة",
+        "byCountry": "حسب الدولة",
+        "byLanguage": "حسب اللغة"
+      }
+    },
+    "trend": {
+      "messagesSent": "الرسائل المرسلة",
+      "messagesReceived": "الرسائل المستلمة",
+      "conversationsOpened": "المحادثات المفتوحة",
+      "contactsAdded": "جهات الاتصال المضافة"
+    }
+  },
+  "exports": {
+    "type": "النوع",
+    "status": "الحالة",
+    "rows": "الصفوف",
+    "createdAt": "تاريخ الإنشاء",
+    "created": "بدأ التصدير. سيظهر أدناه عندما يصبح جاهزًا.",
+    "createFailed": "تعذر بدء التصدير.",
+    "downloadFailed": "فشل التنزيل.",
+    "download": "تنزيل",
+    "none": "لا توجد عمليات تصدير بعد",
+    "types": {
+      "contacts": "تصدير جهات الاتصال",
+      "campaign-recipients": "تصدير المستلمين",
+      "campaign-performance": "تصدير تقرير الحملة",
+      "inbox-performance": "تصدير تقرير صندوق الوارد",
+      "failure-analysis": "تصدير الأخطاء",
+      "audit-log": "تصدير سجل التدقيق"
+    },
+    "status": {
+      "PENDING": "قيد الانتظار",
+      "RUNNING": "جارٍ التنفيذ",
+      "COMPLETED": "مكتمل",
+      "FAILED": "فشل"
+    }
+  },
+  "auditLog": {
+    "title": "سجل التدقيق",
+    "description": "راجع من فعل ماذا عبر المنصة.",
+    "searchPlaceholder": "بحث في الإجراءات والكيانات…",
+    "createdAt": "الوقت",
+    "actor": "الفاعل",
+    "action": "الإجراء",
+    "entity": "الكيان",
+    "details": "التفاصيل",
+    "noLogs": "لا توجد إدخالات تدقيق",
+    "noLogsDescription": "ستظهر الإجراءات هنا عند حدوثها."
+  },
+  "operations": {
+    "title": "العمليات",
+    "description": "حالة النظام وصحة الطوابير وإجراءات الاسترداد.",
+    "uptime": "مدة التشغيل",
+    "database": "قاعدة البيانات",
+    "redis": "ريديس",
+    "whatsapp": "واتساب",
+    "up": "يعمل",
+    "down": "متوقف",
+    "paused": "متوقف مؤقتًا",
+    "active": "نشط",
+    "queues": "الطوابير",
+    "queuesDescription": "أعد المحاولة أو أزل الوظائف الفاشلة لكل طابور.",
+    "queueName": "الطابور",
+    "waiting": "في الانتظار",
+    "activeJobs": "نشطة",
+    "delayed": "مؤجلة",
+    "failed": "فاشلة",
+    "completed": "مكتملة",
+    "workers": "العاملون",
+    "retry": "إعادة المحاولة للفاشلة",
+    "drain": "إزالة الفاشلة",
+    "retried": "أُعيدت محاولة {{count}} وظيفة.",
+    "drained": "أُزيلت {{count}} وظيفة فاشلة.",
+    "partialError": "اكتمل مع {{count}} خطأ.",
+    "actionFailed": "فشلت العملية.",
+    "phoneNumbers": "{{count}} رقم هاتف",
+    "webhooks": "خطافات الويب",
+    "oldestPending": "أقدم وظيفة معلقة: {{seconds}} ثانية",
+    "generatedAt": "أُنشئت:",
+    "accountStatus": {
+      "CONNECTED": "متصل",
+      "DISCONNECTED": "غير متصل",
+      "ERROR": "خطأ"
+    },
+    "webhookStatus": {
+      "RECEIVED": "مستلمة",
+      "QUEUED": "في الطابور",
+      "PROCESSING": "جارٍ المعالجة",
+      "PROCESSED": "تمت المعالجة",
+      "FAILED": "فاشلة",
+      "IGNORED": "تم تجاهلها"
+    },
+    "inbox": {
+      "open": "مفتوحة",
+      "unread": "غير مقروءة",
+      "unassigned": "غير مسندة"
     }
   }
 }

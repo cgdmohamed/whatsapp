@@ -23,6 +23,20 @@ export function formatDate(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
 }
 
+export function formatTime(value: string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.charAt(0) ?? '';

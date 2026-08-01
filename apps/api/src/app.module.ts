@@ -14,6 +14,10 @@ import { IntegrationLogsModule } from './modules/integration-logs/integration-lo
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { InboxModule } from './modules/inbox/inbox.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { OperationsModule } from './modules/operations/operations.module';
 import { QueueModule } from './common/queue/queue.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { DatabaseModule } from './common/database/database.module';
@@ -76,6 +80,10 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     ContactsModule,
     ImportsModule,
     CampaignsModule,
+    InboxModule,
+    ReportsModule,
+    AuditLogsModule,
+    OperationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },

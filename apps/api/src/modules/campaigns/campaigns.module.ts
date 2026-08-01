@@ -16,7 +16,7 @@ import {
   WhatsappMessageSendWorker,
   WhatsappStatusReconciliationWorker,
 } from './campaign-workers';
-import { MessagesDao } from './messages.dao';
+import { MessagesDao } from '../inbox/messages.dao';
 
 @Module({
   imports: [WhatsAppModule],

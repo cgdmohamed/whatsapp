@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 
-import { WEBHOOK_QUEUE, WHATSAPP_STATUS_RECONCILIATION_QUEUE } from '../../../common/queue/queue.module';
+import { WEBHOOK_QUEUE, WHATSAPP_STATUS_RECONCILIATION_QUEUE, INBOX_QUEUE } from '../../../common/queue/queue.module';
 import { WebhookEventsDao } from './webhook-events.dao';
 import { eventTypeSummary, parseWebhookPayload } from './webhook-parser';
 import type { WebhookEventRow } from '../../../db/schema';
@@ -16,6 +16,7 @@ export class WebhookProcessingService {
   constructor(
     @Inject(WEBHOOK_QUEUE) private readonly webhookQueue: Queue,
     @Inject(WHATSAPP_STATUS_RECONCILIATION_QUEUE) private readonly statusQueue: Queue,
+    @Inject(INBOX_QUEUE) private readonly inboxQueue: Queue,
     private readonly eventsDao: WebhookEventsDao,
   ) {}
 
@@ -91,10 +92,12 @@ export class WebhookProcessingService {
   private async publishStatusEvents(webhookEventId: string, result: NormalizedWebhookResult): Promise<void> {
     for (const [index, event] of result.events.entries()) {
       const kind = event.kind === 'status' ? 'status' : 'message';
+      const payload = event.kind === 'status' ? event.status : event.message;
+      // Campaign pipeline: recipient status mirroring and reply attribution.
       try {
         await this.statusQueue.add(
           'reconcile',
-          { kind, payload: event.kind === 'status' ? event.status : event.message, webhookEventId },
+          { kind, payload, webhookEventId },
           {
             jobId: `recon:${webhookEventId}:${index}`,
             attempts: 5,
@@ -106,6 +109,24 @@ export class WebhookProcessingService {
       } catch (error) {
         this.logger.warn(
           `Failed to enqueue status event for webhook ${webhookEventId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      // Inbox pipeline: conversation store, unread/service-window, media, opt-out, realtime.
+      try {
+        await this.inboxQueue.add(
+          'inbox',
+          { kind, payload, webhookEventId },
+          {
+            jobId: `inbox:${webhookEventId}:${index}`,
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 1000 },
+            removeOnComplete: { count: 5000 },
+            removeOnFail: { count: 5000 },
+          },
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to enqueue inbox event for webhook ${webhookEventId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }

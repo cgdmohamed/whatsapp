@@ -2,17 +2,20 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './components/app-shell';
 import { RequireAuth, RequireRole } from './components/guards';
+import { AuditLogPage } from './pages/audit-log-page';
 import { ChangePasswordPage } from './pages/change-password-page';
 import { CampaignsPage } from './pages/campaigns-page';
 import { ContactsPage } from './pages/contacts-page';
 import { DashboardPage } from './pages/dashboard-page';
 import { ForbiddenPage, NotFoundPage } from './pages/error-pages';
 import { ImportsPage } from './pages/imports-page';
+import { InboxPage } from './pages/inbox-page';
 import { IntegrationLogsPage } from './pages/integration-logs-page';
 import { ListsPage } from './pages/lists-page';
 import { LoginPage } from './pages/login-page';
-import { PlaceholderPage } from './pages/placeholder-page';
+import { OperationsPage } from './pages/operations-page';
 import { ProfilePage } from './pages/profile-page';
+import { ReportsPage } from './pages/reports-page';
 import { SettingsPage } from './pages/settings-page';
 import { TagsPage } from './pages/tags-page';
 import { UsersPage } from './pages/users-page';
@@ -52,6 +55,15 @@ export default function App() {
           }
         />
         <Route
+          path="reports"
+          element={
+            <RequireRole roles={['ADMIN', 'MANAGER']}>
+              <ReportsPage />
+            </RequireRole>
+          }
+        />
+        <Route path="inbox" element={<InboxPage />} />
+        <Route
           path="users"
           element={
             <RequireRole roles={['ADMIN', 'MANAGER']}>
@@ -71,7 +83,15 @@ export default function App() {
           path="audit-log"
           element={
             <RequireRole roles={['ADMIN']}>
-              <PlaceholderPage />
+              <AuditLogPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="operations"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <OperationsPage />
             </RequireRole>
           }
         />

@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, count, desc, asc, eq, gte, inArray } from 'drizzle-orm';
-import type { MessageDto } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
 import {
@@ -8,44 +7,15 @@ import {
   messageStatusEvents,
   messages,
   campaignRecipients,
+  mediaFiles,
   type ConversationRow,
+  type MediaFileRow,
   type MessageRow,
   type MessageStatusEventRow,
   type NewConversation,
   type NewMessage,
   type NewMessageStatusEvent,
 } from '../../db/schema';
-
-export function toMessageDto(row: MessageRow): MessageDto {
-  return {
-    id: row.id,
-    contactId: row.contactId ?? null,
-    conversationId: row.conversationId ?? null,
-    campaignId: row.campaignId ?? null,
-    campaignRecipientId: row.campaignRecipientId ?? null,
-    whatsappPhoneNumberId: row.whatsappPhoneNumberId ?? null,
-    direction: row.direction,
-    type: row.type,
-    status: row.status,
-    metaMessageId: row.metaMessageId ?? null,
-    replyToMetaMessageId: row.replyToMetaMessageId ?? null,
-    textContent: row.textContent ?? null,
-    templateName: row.templateName ?? null,
-    templateLanguage: row.templateLanguage ?? null,
-    templateParameters: (row.templateParameters as string[] | null) ?? null,
-    mediaId: row.mediaId ?? null,
-    mediaUrl: row.mediaUrl ?? null,
-    errorCode: row.errorCode ?? null,
-    errorMessage: row.errorMessage ?? null,
-    sentByUserId: row.sentByUserId ?? null,
-    isTest: row.isTest,
-    createdAt: row.createdAt.toISOString(),
-    sentAt: row.sentAt ? row.sentAt.toISOString() : null,
-    deliveredAt: row.deliveredAt ? row.deliveredAt.toISOString() : null,
-    readAt: row.readAt ? row.readAt.toISOString() : null,
-    failedAt: row.failedAt ? row.failedAt.toISOString() : null,
-  };
-}
 
 // Status precedence model: higher index = more progressed. Out-of-order events never downgrade.
 export const STATUS_PRECEDENCE: Record<string, number> = {
@@ -68,6 +38,11 @@ const META_TO_ROW_STATUS: Record<string, MessageRow['status']> = {
   failed: 'FAILED',
 };
 
+export interface ConversationMessageWithMedia {
+  message: MessageRow;
+  mediaFile: MediaFileRow | null;
+}
+
 @Injectable()
 export class MessagesDao {
   constructor(@Inject(DATABASE) private readonly db: DrizzleDB) {}
@@ -76,9 +51,17 @@ export class MessagesDao {
     return this.db.query.messages.findFirst({ where: eq(messages.metaMessageId, metaMessageId) });
   }
 
-  async insert(values: NewMessage): Promise<MessageRow> {
-    const [row] = await this.db.insert(messages).values(values).returning();
-    return row!;
+  findById(id: string): Promise<MessageRow | undefined> {
+    return this.db.query.messages.findFirst({ where: eq(messages.id, id) });
+  }
+
+  insert(values: NewMessage): Promise<MessageRow> {
+    return this.db.insert(messages).values(values).returning().then((rows) => rows[0]!);
+  }
+
+  async update(id: string, patch: Partial<MessageRow>): Promise<MessageRow | undefined> {
+    const rows = await this.db.update(messages).set(patch).where(eq(messages.id, id)).returning();
+    return rows[0];
   }
 
   async insertStatusEvent(values: NewMessageStatusEvent): Promise<MessageStatusEventRow> {
@@ -216,5 +199,32 @@ export class MessagesDao {
       .from(messages)
       .where(eq(messages.conversationId, conversationId))
       .orderBy(asc(messages.createdAt));
+  }
+
+  async listForConversationPaginated(
+    conversationId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ rows: ConversationMessageWithMedia[]; total: number }> {
+    const [totalResult, rows] = await Promise.all([
+      this.db.select({ value: count() }).from(messages).where(eq(messages.conversationId, conversationId)),
+      this.db
+        .select()
+        .from(messages)
+        .leftJoin(mediaFiles, eq(mediaFiles.messageId, messages.id))
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(desc(messages.createdAt))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize),
+    ]);
+    return {
+      rows: rows.map((row) => ({ message: row.messages, mediaFile: row.media_files })),
+      total: totalResult[0]?.value ?? 0,
+    };
+  }
+
+  async countForConversation(conversationId: string): Promise<number> {
+    const rows = await this.db.select({ value: count() }).from(messages).where(eq(messages.conversationId, conversationId));
+    return rows[0]?.value ?? 0;
   }
 }

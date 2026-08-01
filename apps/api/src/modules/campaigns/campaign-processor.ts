@@ -9,7 +9,7 @@ import { MetaApiError } from '../whatsapp/meta-api/meta-api.errors';
 import { CampaignDispatchService } from './campaign-dispatch.service';
 import { CampaignRecipientsDao } from './campaign-recipients.dao';
 import { CampaignsDao } from './campaigns.dao';
-import { MessagesDao } from './messages.dao';
+import { MessagesDao } from '../inbox/messages.dao';
 
 interface SendJobData {
   recipientId: string;

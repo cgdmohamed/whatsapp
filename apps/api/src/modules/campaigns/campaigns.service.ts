@@ -32,7 +32,7 @@ import { AudienceService, collectTemplateVariableNames } from './audience.servic
 import { CampaignRecipientsDao } from './campaign-recipients.dao';
 import { CampaignsDao, toCampaignDto } from './campaigns.dao';
 import { CampaignDispatchService } from './campaign-dispatch.service';
-import { MessagesDao } from './messages.dao';
+import { MessagesDao } from '../inbox/messages.dao';
 import type { CampaignRow, MessageTemplateRow } from '../../db/schema';
 
 const EDITABLE_STATUSES: CampaignStatus[] = ['DRAFT'];

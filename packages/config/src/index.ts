@@ -38,6 +38,7 @@ export const apiEnvSchema = z
     META_WABA_ID: z.string().optional(),
     META_PHONE_NUMBER_ID: z.string().optional(),
     META_GRAPH_API_VERSION: z.string().default('v21.0'),
+    EXPORTS_DIR: z.string().default('./exports'),
     SEED_ADMIN_NAME: z.string().optional(),
     SEED_ADMIN_EMAIL: z.string().email().optional(),
     SEED_ADMIN_PASSWORD: z.string().optional(),
@@ -90,6 +91,9 @@ export const DEFAULT_SETTINGS = {
   sessionDurationMinutes: 120,
   campaignSendingConcurrency: 5,
   campaignMessagesPerMinute: 60,
+  agentsCanViewUnassignedConversations: false,
+  serviceWindowHours: 24,
+  maxInboxMediaSizeMb: 16,
 } as const;
 
 export type DefaultSettings = typeof DEFAULT_SETTINGS;

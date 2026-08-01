@@ -6,6 +6,7 @@ import type {
   CreateTemplateInput,
   CreateTemplateResult,
   DownloadMediaResult,
+  MediaDownloadInfo,
   MediaInfo,
   MessageResponse,
   MetaMessageTemplate,
@@ -14,6 +15,8 @@ import type {
   SendTemplateMessageInput,
   SendTextMessageInput,
   TestConnectionResult,
+  UploadMediaInput,
+  UploadMediaResult,
   WabaInfo,
 } from './meta-api.types';
 
@@ -27,7 +30,7 @@ export interface MetaRequestOptions {
   retries?: number;
   retryBackoffMs?: number;
   maxRetryDelayMs?: number;
-  body?: Record<string, unknown>;
+  body?: Record<string, unknown> | FormData;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -146,6 +149,19 @@ export class MetaApiClient {
     return this.request<MediaInfo>('GET', `${mediaId}?fields=id,mime_type,sha256,file_size,filename`);
   }
 
+  async getMedia(mediaId: string): Promise<MediaDownloadInfo> {
+    return this.request<MediaDownloadInfo>('GET', `${mediaId}`);
+  }
+
+  async uploadMedia(input: UploadMediaInput): Promise<UploadMediaResult> {
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', input.mimeType);
+    form.append('filename', input.filename);
+    form.append('file', new Blob([input.file], { type: input.mimeType }), input.filename);
+    return this.request<UploadMediaResult>('POST', `${input.phoneNumberId}/media`, { body: form });
+  }
+
   async downloadMedia(url: string): Promise<DownloadMediaResult> {
     const parsed = new URL(url);
     if (!parsed.hostname.endsWith('fbsbx.com')) {
@@ -225,9 +241,10 @@ export class MetaApiClient {
 
     const requestId = randomUUID();
     const url = `${GRAPH_API_BASE_URL}/${this.graphApiVersion}/${path}`;
+    const isFormData = options.body instanceof FormData;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'X-Request-Id': requestId,
     };
 
@@ -239,7 +256,7 @@ export class MetaApiClient {
       response = await this.fetchImpl(url, {
         method,
         headers,
-        body: method === 'GET' ? undefined : JSON.stringify(options.body ?? {}),
+        body: method === 'GET' ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body ?? {}),
         signal: controller.signal,
       });
     } catch (error) {

@@ -285,7 +285,6 @@ describe('campaigns', () => {
     let db: any;
     let messagesDao: any;
     let recipientsDao: any;
-    let auditService: { record: jest.Mock };
 
     beforeEach(() => {
       db = {
@@ -300,12 +299,7 @@ describe('campaigns', () => {
       };
       messagesDao = {
         findByMetaMessageId: jest.fn(),
-        applyStatusUpdate: jest.fn(),
         insertStatusEvent: jest.fn(),
-        findOpenConversationForContact: jest.fn(),
-        insertConversation: jest.fn(),
-        touchConversation: jest.fn(),
-        insert: jest.fn(),
         findRecentOutboundForContact: jest.fn(),
         aggregateCampaignMetrics: jest.fn(),
       };
@@ -314,18 +308,15 @@ describe('campaigns', () => {
         setStatus: jest.fn(),
         listByStatusForContact: jest.fn(),
       };
-      auditService = { record: jest.fn() };
-      service = new CampaignStatusService(db as never, messagesDao as never, recipientsDao as never, auditService as never);
+      service = new CampaignStatusService(db as never, messagesDao as never, recipientsDao as never);
     });
 
     it('does not downgrade a READ state when a delayed SENT arrives', async () => {
       const messageRow = { id: 'm1', campaignRecipientId: 'r1', status: 'READ' };
       messagesDao.findByMetaMessageId.mockResolvedValue(messageRow);
-      messagesDao.applyStatusUpdate.mockResolvedValue({ messageRow, updated: false });
 
       await service.applyStatusUpdate(
         { waMessageId: 'wamid-1', waPhoneNumberId: 'pn', status: 'sent', timestamp: '1700000000', error: null },
-        'evt-1',
       );
       expect(recipientsDao.setStatus).not.toHaveBeenCalled();
     });
@@ -333,43 +324,31 @@ describe('campaigns', () => {
     it('advances status and mirrors it to the recipient for a new event', async () => {
       const messageRow = { id: 'm1', campaignRecipientId: 'r1', status: 'SENT' };
       messagesDao.findByMetaMessageId.mockResolvedValue(messageRow);
-      messagesDao.applyStatusUpdate.mockResolvedValue({ messageRow: { ...messageRow, status: 'DELIVERED' }, updated: true });
       recipientsDao.findById.mockResolvedValue({ id: 'r1', status: 'SENT' });
 
       await service.applyStatusUpdate(
         { waMessageId: 'wamid-1', waPhoneNumberId: 'pn', status: 'delivered', timestamp: '1700000000', error: null },
-        'evt-1',
       );
       expect(recipientsDao.setStatus).toHaveBeenCalledWith('r1', 'DELIVERED', expect.objectContaining({ deliveredAt: expect.any(Date) }));
     });
 
-    it('processes a STOP opt-out and cancels unsent recipients', async () => {
+    it('does not process opt-out itself (owned by the inbox pipeline)', async () => {
       db.select.mockReturnValue({
         from: () => ({
           where: () => ({ limit: () => Promise.resolve([{ id: 'c1', phoneE164: '+15551234567' }]) }),
         }),
       });
-      db.insert.mockReturnValue({ values: () => Promise.resolve() });
-      db.update.mockReturnValue({ set: () => ({ where: () => Promise.resolve() }) });
-      messagesDao.findOpenConversationForContact.mockResolvedValue(undefined);
-      messagesDao.insertConversation.mockResolvedValue({ id: 'conv-1' });
-      messagesDao.insert.mockResolvedValue({});
-      recipientsDao.listByStatusForContact.mockResolvedValue([{ id: 'r1' }, { id: 'r2' }]);
+      messagesDao.findRecentOutboundForContact.mockResolvedValue([]);
 
-      await service.handleInboundMessage(
-        {
-          waMessageId: 'wamid-in',
-          waPhoneNumberId: 'pn',
-          from: '+15551234567',
-          timestamp: '1700000000',
-          type: 'TEXT',
-          body: 'STOP',
-        },
-        'evt-1',
-      );
-      expect(recipientsDao.setStatus).toHaveBeenCalledWith('r1', 'OPTED_OUT', expect.any(Object));
-      expect(recipientsDao.setStatus).toHaveBeenCalledWith('r2', 'OPTED_OUT', expect.any(Object));
-      expect(auditService.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'campaign.recipient_opt_out' }));
+      await service.handleInboundMessage({
+        waMessageId: 'wamid-in',
+        waPhoneNumberId: 'pn',
+        from: '+15551234567',
+        timestamp: '1700000000',
+        type: 'TEXT',
+        body: 'STOP',
+      });
+      expect(recipientsDao.setStatus).not.toHaveBeenCalled();
     });
 
     it('attributes a reply to the single recent campaign and does not downgrade others', async () => {
@@ -378,25 +357,18 @@ describe('campaigns', () => {
           where: () => ({ limit: () => Promise.resolve([{ id: 'c1', phoneE164: '+15551234567' }]) }),
         }),
       });
-      db.insert.mockReturnValue({ values: () => Promise.resolve() });
-      db.update.mockReturnValue({ set: () => ({ where: () => Promise.resolve() }) });
-      messagesDao.findOpenConversationForContact.mockResolvedValue({ id: 'conv-1' });
-      messagesDao.touchConversation.mockResolvedValue(undefined);
       messagesDao.findRecentOutboundForContact.mockResolvedValue([
         { id: 'm-camp', campaignId: 'camp-1', campaignRecipientId: 'r1', metaMessageId: 'wamid-out', status: 'DELIVERED' },
       ]);
 
-      await service.handleInboundMessage(
-        {
-          waMessageId: 'wamid-reply',
-          waPhoneNumberId: 'pn',
-          from: '+15551234567',
-          timestamp: '1700000000',
-          type: 'TEXT',
-          body: 'thanks!',
-        },
-        'evt-2',
-      );
+      await service.handleInboundMessage({
+        waMessageId: 'wamid-reply',
+        waPhoneNumberId: 'pn',
+        from: '+15551234567',
+        timestamp: '1700000000',
+        type: 'TEXT',
+        body: 'thanks!',
+      });
       expect(recipientsDao.setStatus).toHaveBeenCalledWith('r1', 'REPLIED', expect.objectContaining({ repliedAt: expect.any(Date) }));
     });
 
@@ -406,26 +378,19 @@ describe('campaigns', () => {
           where: () => ({ limit: () => Promise.resolve([{ id: 'c1', phoneE164: '+15551234567' }]) }),
         }),
       });
-      db.insert.mockReturnValue({ values: () => Promise.resolve() });
-      db.update.mockReturnValue({ set: () => ({ where: () => Promise.resolve() }) });
-      messagesDao.findOpenConversationForContact.mockResolvedValue({ id: 'conv-1' });
-      messagesDao.touchConversation.mockResolvedValue(undefined);
       messagesDao.findRecentOutboundForContact.mockResolvedValue([
         { id: 'm1', campaignId: 'camp-1', campaignRecipientId: 'r1', metaMessageId: 'w1', status: 'DELIVERED' },
         { id: 'm2', campaignId: 'camp-2', campaignRecipientId: 'r2', metaMessageId: 'w2', status: 'DELIVERED' },
       ]);
 
-      await service.handleInboundMessage(
-        {
-          waMessageId: 'wamid-reply2',
-          waPhoneNumberId: 'pn',
-          from: '+15551234567',
-          timestamp: '1700000000',
-          type: 'TEXT',
-          body: 'hi',
-        },
-        'evt-3',
-      );
+      await service.handleInboundMessage({
+        waMessageId: 'wamid-reply2',
+        waPhoneNumberId: 'pn',
+        from: '+15551234567',
+        timestamp: '1700000000',
+        type: 'TEXT',
+        body: 'hi',
+      });
       expect(recipientsDao.setStatus).not.toHaveBeenCalledWith('r1', 'REPLIED', expect.anything());
       expect(recipientsDao.setStatus).not.toHaveBeenCalledWith('r2', 'REPLIED', expect.anything());
     });
