@@ -32,6 +32,6 @@ import { TemplateSyncWorker } from './templates/template-sync.worker';
     MessageTemplatesService,
     TemplateSyncWorker,
   ],
-  exports: [WebhookEventsService, MessageTemplatesService],
+  exports: [WebhookEventsService, MessageTemplatesService, WhatsAppService, WhatsAppAccountsDao, WhatsAppPhoneNumbersDao, MessageTemplatesDao],
 })
 export class WhatsAppModule {}

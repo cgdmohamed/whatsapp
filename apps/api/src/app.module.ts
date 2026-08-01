@@ -13,6 +13,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { IntegrationLogsModule } from './modules/integration-logs/integration-logs.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { ImportsModule } from './modules/imports/imports.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { QueueModule } from './common/queue/queue.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { DatabaseModule } from './common/database/database.module';
@@ -74,6 +75,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     IntegrationLogsModule,
     ContactsModule,
     ImportsModule,
+    CampaignsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },

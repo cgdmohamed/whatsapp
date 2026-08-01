@@ -974,6 +974,333 @@ export interface NormalizedWebhookResult {
   ignored: NormalizedIgnoredEvent[];
 }
 
+// ---------- Campaigns ----------
+
+export const CAMPAIGN_STATUSES = [
+  'DRAFT',
+  'VALIDATING',
+  'READY',
+  'SCHEDULED',
+  'QUEUING',
+  'RUNNING',
+  'PAUSED',
+  'COMPLETED',
+  'CANCELLED',
+  'FAILED',
+] as const;
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+export const CAMPAIGN_RECIPIENT_STATUSES = [
+  'PENDING',
+  'INELIGIBLE',
+  'QUEUED',
+  'SENDING',
+  'SENT',
+  'DELIVERED',
+  'READ',
+  'REPLIED',
+  'FAILED',
+  'CANCELLED',
+  'OPTED_OUT',
+] as const;
+export type CampaignRecipientStatus = (typeof CAMPAIGN_RECIPIENT_STATUSES)[number];
+
+export const MESSAGE_DIRECTIONS = ['INBOUND', 'OUTBOUND'] as const;
+export type MessageDirection = (typeof MESSAGE_DIRECTIONS)[number];
+
+export const MESSAGE_ROW_STATUSES = [
+  'PENDING',
+  'QUEUED',
+  'SENT',
+  'DELIVERED',
+  'READ',
+  'REPLIED',
+  'FAILED',
+  'RECEIVED',
+  'CANCELLED',
+] as const;
+export type MessageRowStatus = (typeof MESSAGE_ROW_STATUSES)[number];
+
+export const AUDIENCE_TYPES = ['LISTS', 'TAGS', 'CONTACTS', 'FILTER'] as const;
+export type AudienceType = (typeof AUDIENCE_TYPES)[number];
+
+export const VARIABLE_SOURCES = [
+  'FIRST_NAME',
+  'LAST_NAME',
+  'DISPLAY_NAME',
+  'COMPANY',
+  'PHONE',
+  'EMAIL',
+  'CUSTOM_FIELD',
+  'STATIC',
+] as const;
+export type VariableSource = (typeof VARIABLE_SOURCES)[number];
+
+export const ELIGIBILITY_REASONS = [
+  'ELIGIBLE',
+  'INVALID_PHONE',
+  'UNKNOWN_CONSENT',
+  'OPTED_OUT',
+  'SUPPRESSED',
+  'MISSING_VARIABLE',
+  'DUPLICATE',
+  'ARCHIVED',
+  'OTHER',
+] as const;
+export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number];
+
+export const OPT_OUT_KEYWORDS = ['STOP', 'UNSUBSCRIBE', 'إلغاء', 'توقف', 'إيقاف الرسائل', 'OPT_OUT'] as const;
+export const OPT_OUT_QUICK_REPLY_PAYLOAD = 'OPT_OUT';
+
+export const CONVERSATION_STATUSES = ['OPEN', 'CLOSED'] as const;
+export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
+export const audienceFilterSchema = z.object({
+  status: z.enum(CONTACT_STATUSES).optional(),
+  language: z.enum(LANGUAGES).optional(),
+  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).optional(),
+  optInStatus: z.enum(OPT_IN_STATUSES).optional(),
+  suppressed: z.enum(['yes', 'no']).optional(),
+});
+export type AudienceFilter = z.infer<typeof audienceFilterSchema>;
+
+export const audienceSelectionSchema = z.object({
+  type: z.enum(AUDIENCE_TYPES),
+  listIds: z.array(ID_SCHEMA).max(50).optional(),
+  tagIds: z.array(ID_SCHEMA).max(50).optional(),
+  contactIds: z.array(ID_SCHEMA).max(2000).optional(),
+  filters: audienceFilterSchema.optional(),
+});
+export type AudienceSelection = z.infer<typeof audienceSelectionSchema>;
+
+export const variableMappingSchema = z.object({
+  variableName: z.string().trim().min(1).max(20),
+  source: z.enum(VARIABLE_SOURCES),
+  customFieldKey: z.string().trim().max(100).optional(),
+  staticText: z.string().trim().max(2000).optional(),
+  fallback: z.string().trim().max(2000).optional(),
+});
+export type VariableMapping = z.infer<typeof variableMappingSchema>;
+
+export const audienceSnapshotContactSchema = z.object({
+  id: z.string().uuid(),
+  phoneE164: z.string(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  displayName: z.string().nullable(),
+  company: z.string().nullable(),
+  email: z.string().nullable(),
+  language: z.string().nullable(),
+  status: z.string().nullable(),
+  customFields: z.record(z.string(), z.string()).nullable(),
+});
+export type AudienceSnapshotContact = z.infer<typeof audienceSnapshotContactSchema>;
+
+export const templateSnapshotSchema = z.object({
+  metaTemplateId: z.string(),
+  name: z.string(),
+  language: z.string(),
+  components: z.array(templateComponentSchema),
+  blockedAt: z.string().nullable(),
+});
+export type TemplateSnapshot = z.infer<typeof templateSnapshotSchema>;
+
+export const preflightBreakdownSchema = z.object({
+  totalSelected: z.number().int().nonnegative(),
+  eligible: z.number().int().nonnegative(),
+  invalidPhone: z.number().int().nonnegative(),
+  unknownConsent: z.number().int().nonnegative(),
+  optedOut: z.number().int().nonnegative(),
+  suppressed: z.number().int().nonnegative(),
+  missingVariable: z.number().int().nonnegative(),
+  duplicate: z.number().int().nonnegative(),
+  archived: z.number().int().nonnegative(),
+  other: z.number().int().nonnegative(),
+});
+export type PreflightBreakdown = z.infer<typeof preflightBreakdownSchema>;
+
+export const preflightReportSchema = z.object({
+  campaignId: z.string().uuid().nullable(),
+  valid: z.boolean(),
+  checks: z.object({
+    accountConnected: z.boolean(),
+    phoneNumberActive: z.boolean(),
+    templateApproved: z.boolean(),
+    templateStatusUnchanged: z.boolean(),
+    templateLanguageMatches: z.boolean(),
+    sendingLimitsConfigured: z.boolean(),
+  }),
+  breakdown: preflightBreakdownSchema,
+  blockedReasons: z.array(z.object({ reason: z.enum(ELIGIBILITY_REASONS), count: z.number().int().nonnegative() })),
+  errors: z.array(z.string()),
+  generatedAt: z.string(),
+});
+export type PreflightReport = z.infer<typeof preflightReportSchema>;
+
+export const createCampaignSchema = z.object({
+  name: nameSchema,
+  description: z.string().trim().max(2000).optional(),
+  whatsappPhoneNumberId: ID_SCHEMA,
+  messageTemplateId: ID_SCHEMA,
+  language: z.string().trim().min(2).max(10),
+  audience: audienceSelectionSchema,
+  variableMapping: z.array(variableMappingSchema),
+  scheduledAt: z.string().trim().optional(),
+});
+export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+
+export const updateCampaignSchema = z
+  .object({
+    name: nameSchema.optional(),
+    description: z.string().trim().max(2000).nullable().optional(),
+    whatsappPhoneNumberId: ID_SCHEMA.optional(),
+    messageTemplateId: ID_SCHEMA.optional(),
+    language: z.string().trim().min(2).max(10).optional(),
+    audience: audienceSelectionSchema.optional(),
+    variableMapping: z.array(variableMappingSchema).optional(),
+    scheduledAt: z.string().trim().nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: 'AT_LEAST_ONE_FIELD_REQUIRED' });
+export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
+
+export const campaignSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  whatsappPhoneNumberId: z.string().uuid().nullable(),
+  messageTemplateId: z.string().uuid().nullable(),
+  templateSnapshot: templateSnapshotSchema.nullable(),
+  language: z.string(),
+  status: z.enum(CAMPAIGN_STATUSES),
+  audienceType: z.enum(AUDIENCE_TYPES),
+  audienceSnapshot: z.array(audienceSnapshotContactSchema),
+  variableMapping: z.array(variableMappingSchema),
+  scheduledAt: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  pausedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  cancelledAt: z.string().nullable(),
+  createdByUserId: z.string().uuid().nullable(),
+  approvedByUserId: z.string().uuid().nullable(),
+  totalRecipients: z.number().int().nonnegative(),
+  eligibleRecipients: z.number().int().nonnegative(),
+  skippedRecipients: z.number().int().nonnegative(),
+  queuedRecipients: z.number().int().nonnegative(),
+  sentRecipients: z.number().int().nonnegative(),
+  deliveredRecipients: z.number().int().nonnegative(),
+  readRecipients: z.number().int().nonnegative(),
+  repliedRecipients: z.number().int().nonnegative(),
+  failedRecipients: z.number().int().nonnegative(),
+  optedOutRecipients: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+});
+export type CampaignDto = z.infer<typeof campaignSchema>;
+
+export const campaignRecipientSchema = z.object({
+  id: z.string().uuid(),
+  campaignId: z.string().uuid(),
+  contactId: z.string().uuid().nullable(),
+  phoneE164: z.string(),
+  contactSnapshot: z.record(z.string(), z.unknown()),
+  resolvedTemplateParameters: z.array(z.string()),
+  status: z.enum(CAMPAIGN_RECIPIENT_STATUSES),
+  eligibilityReason: z.enum(ELIGIBILITY_REASONS).nullable(),
+  idempotencyKey: z.string(),
+  queueJobId: z.string().nullable(),
+  metaMessageId: z.string().nullable(),
+  queuedAt: z.string().nullable(),
+  sendAttemptedAt: z.string().nullable(),
+  sentAt: z.string().nullable(),
+  deliveredAt: z.string().nullable(),
+  readAt: z.string().nullable(),
+  repliedAt: z.string().nullable(),
+  failedAt: z.string().nullable(),
+  optedOutAt: z.string().nullable(),
+  failureCode: z.string().nullable(),
+  failureMessage: z.string().nullable(),
+  attemptCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type CampaignRecipientDto = z.infer<typeof campaignRecipientSchema>;
+
+export const campaignQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(255).optional(),
+  status: z.enum(CAMPAIGN_STATUSES).optional(),
+  templateId: ID_SCHEMA.optional(),
+  createdByUserId: ID_SCHEMA.optional(),
+  createdFrom: z.string().trim().optional(),
+  createdTo: z.string().trim().optional(),
+  sortBy: z.enum(['name', 'status', 'createdAt', 'updatedAt', 'scheduledAt']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+export type CampaignQuery = z.infer<typeof campaignQuerySchema>;
+
+export const paginatedCampaignsSchema = paginatedResponseSchema(campaignSchema);
+export type PaginatedCampaigns = z.infer<typeof paginatedCampaignsSchema>;
+
+export const campaignRecipientQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.enum(CAMPAIGN_RECIPIENT_STATUSES).optional(),
+  failureCode: z.string().trim().max(100).optional(),
+  search: z.string().trim().max(255).optional(),
+  sortBy: z.enum(['phoneE164', 'status', 'createdAt', 'sentAt', 'updatedAt']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
+});
+export type CampaignRecipientQuery = z.infer<typeof campaignRecipientQuerySchema>;
+
+export const paginatedCampaignRecipientsSchema = paginatedResponseSchema(campaignRecipientSchema);
+export type PaginatedCampaignRecipients = z.infer<typeof paginatedCampaignRecipientsSchema>;
+
+export const messageSchema = z.object({
+  id: z.string().uuid(),
+  contactId: z.string().uuid().nullable(),
+  conversationId: z.string().uuid().nullable(),
+  campaignId: z.string().uuid().nullable(),
+  campaignRecipientId: z.string().uuid().nullable(),
+  whatsappPhoneNumberId: z.string().nullable(),
+  direction: z.enum(MESSAGE_DIRECTIONS),
+  type: z.string(),
+  status: z.enum(MESSAGE_ROW_STATUSES),
+  metaMessageId: z.string().nullable(),
+  replyToMetaMessageId: z.string().nullable(),
+  textContent: z.string().nullable(),
+  templateName: z.string().nullable(),
+  templateLanguage: z.string().nullable(),
+  templateParameters: z.array(z.string()).nullable(),
+  mediaId: z.string().nullable(),
+  mediaUrl: z.string().nullable(),
+  errorCode: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  sentByUserId: z.string().uuid().nullable(),
+  isTest: z.boolean().default(false),
+  createdAt: z.string(),
+  sentAt: z.string().nullable(),
+  deliveredAt: z.string().nullable(),
+  readAt: z.string().nullable(),
+  failedAt: z.string().nullable(),
+});
+export type MessageDto = z.infer<typeof messageSchema>;
+
+export const testSendSchema = z.object({
+  testNumbers: z.array(z.string().trim().min(3).max(30)).min(1).max(5),
+  sampleParameters: z.array(z.string().trim().max(500).max(100)).max(10).optional(),
+});
+export type TestSendInput = z.infer<typeof testSendSchema>;
+
+export const testSendResultSchema = z.object({
+  number: z.string(),
+  success: z.boolean(),
+  metaMessageId: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type TestSendResult = z.infer<typeof testSendResultSchema>;
+
 // ---------- Audit actions ----------
 
 export const AUDIT_ACTIONS = {
@@ -1026,6 +1353,18 @@ export const AUDIT_ACTIONS = {
   TEMPLATE_SYNC: 'whatsapp.template_sync',
   TEMPLATE_CREATE: 'whatsapp.template_create',
   TEMPLATE_STATUS_BLOCKED: 'whatsapp.template_status_blocked',
+  CAMPAIGN_CREATE: 'campaign.create',
+  CAMPAIGN_UPDATE: 'campaign.update',
+  CAMPAIGN_VALIDATE: 'campaign.validate',
+  CAMPAIGN_SCHEDULE: 'campaign.schedule',
+  CAMPAIGN_START: 'campaign.start',
+  CAMPAIGN_PAUSE: 'campaign.pause',
+  CAMPAIGN_RESUME: 'campaign.resume',
+  CAMPAIGN_CANCEL: 'campaign.cancel',
+  CAMPAIGN_DUPLICATE: 'campaign.duplicate',
+  CAMPAIGN_ARCHIVE: 'campaign.archive',
+  CAMPAIGN_TEST_SEND: 'campaign.test_send',
+  CAMPAIGN_RECIPIENT_OPT_OUT: 'campaign.recipient_opt_out',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

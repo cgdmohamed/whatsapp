@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/app-shell';
 import { RequireAuth, RequireRole } from './components/guards';
 import { ChangePasswordPage } from './pages/change-password-page';
+import { CampaignsPage } from './pages/campaigns-page';
 import { ContactsPage } from './pages/contacts-page';
 import { DashboardPage } from './pages/dashboard-page';
 import { ForbiddenPage, NotFoundPage } from './pages/error-pages';
@@ -39,6 +40,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'MANAGER']}>
               <ImportsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="campaigns"
+          element={
+            <RequireRole roles={['ADMIN', 'MANAGER']}>
+              <CampaignsPage />
             </RequireRole>
           }
         />

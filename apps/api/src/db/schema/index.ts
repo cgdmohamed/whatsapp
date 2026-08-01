@@ -27,6 +27,11 @@ import type {
   TemplateCategory,
   TemplateComponent,
   TemplateStatus,
+  CampaignStatus,
+  CampaignRecipientStatus,
+  MessageDirection,
+  MessageRowStatus,
+  ConversationStatus,
 } from '@wa/shared';
 
 export const users = pgTable('users', {
@@ -444,3 +449,186 @@ export const importRows = pgTable(
     index('import_rows_job_status_idx').on(table.importJobId, table.status),
   ],
 );
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contactId: uuid('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    whatsappPhoneNumberId: varchar('whatsapp_phone_number_id', { length: 100 }),
+    status: varchar('status', { length: 20 }).$type<ConversationStatus>().notNull().default('OPEN'),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('conversations_contact_idx').on(table.contactId),
+    index('conversations_status_idx').on(table.status),
+  ],
+);
+
+export const campaigns = pgTable(
+  'campaigns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: varchar('name', { length: 160 }).notNull(),
+    description: text('description'),
+    whatsappPhoneNumberId: uuid('whatsapp_phone_number_id').references(() => whatsappPhoneNumbers.id, { onDelete: 'set null' }),
+    messageTemplateId: uuid('message_template_id').references(() => messageTemplates.id, { onDelete: 'set null' }),
+    templateSnapshot: jsonb('template_snapshot').$type<Record<string, unknown> | null>(),
+    language: varchar('language', { length: 10 }).notNull(),
+    status: varchar('status', { length: 20 }).$type<CampaignStatus>().notNull().default('DRAFT'),
+    audienceType: varchar('audience_type', { length: 20 }).$type<import('@wa/shared').AudienceType>().notNull().default('LISTS'),
+    audienceSnapshot: jsonb('audience_snapshot').$type<unknown[] | null>().notNull().default([]),
+    variableMapping: jsonb('variable_mapping').$type<unknown[] | null>().notNull().default([]),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    totalRecipients: integer('total_recipients').notNull().default(0),
+    eligibleRecipients: integer('eligible_recipients').notNull().default(0),
+    skippedRecipients: integer('skipped_recipients').notNull().default(0),
+    queuedRecipients: integer('queued_recipients').notNull().default(0),
+    sentRecipients: integer('sent_recipients').notNull().default(0),
+    deliveredRecipients: integer('delivered_recipients').notNull().default(0),
+    readRecipients: integer('read_recipients').notNull().default(0),
+    repliedRecipients: integer('replied_recipients').notNull().default(0),
+    failedRecipients: integer('failed_recipients').notNull().default(0),
+    optedOutRecipients: integer('opted_out_recipients').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('campaigns_status_idx').on(table.status),
+    index('campaigns_template_idx').on(table.messageTemplateId),
+    index('campaigns_created_by_idx').on(table.createdByUserId),
+    index('campaigns_scheduled_at_idx').on(table.scheduledAt),
+    index('campaigns_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export const campaignRecipients = pgTable(
+  'campaign_recipients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    phoneE164: varchar('phone_e164', { length: 20 }).notNull(),
+    contactSnapshot: jsonb('contact_snapshot').$type<Record<string, unknown> | null>().notNull().default({}),
+    resolvedTemplateParameters: jsonb('resolved_template_parameters').$type<string[] | null>().notNull().default([]),
+    status: varchar('status', { length: 20 }).$type<CampaignRecipientStatus>().notNull().default('PENDING'),
+    eligibilityReason: varchar('eligibility_reason', { length: 30 }).$type<import('@wa/shared').EligibilityReason>(),
+    idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull(),
+    queueJobId: varchar('queue_job_id', { length: 120 }),
+    metaMessageId: varchar('meta_message_id', { length: 200 }),
+    queuedAt: timestamp('queued_at', { withTimezone: true }),
+    sendAttemptedAt: timestamp('send_attempted_at', { withTimezone: true }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    repliedAt: timestamp('replied_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+    optedOutAt: timestamp('opted_out_at', { withTimezone: true }),
+    failureCode: varchar('failure_code', { length: 50 }),
+    failureMessage: text('failure_message'),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex('campaign_recipients_campaign_contact_idx').on(table.campaignId, table.contactId),
+    uniqueIndex('campaign_recipients_idempotency_key_idx').on(table.idempotencyKey),
+    index('campaign_recipients_campaign_status_idx').on(table.campaignId, table.status),
+    index('campaign_recipients_meta_message_id_idx').on(table.metaMessageId),
+  ],
+);
+
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+    campaignRecipientId: uuid('campaign_recipient_id').references(() => campaignRecipients.id, { onDelete: 'set null' }),
+    whatsappPhoneNumberId: varchar('whatsapp_phone_number_id', { length: 100 }),
+    direction: varchar('direction', { length: 10 }).$type<MessageDirection>().notNull(),
+    type: varchar('type', { length: 40 }).notNull(),
+    status: varchar('status', { length: 20 }).$type<MessageRowStatus>().notNull().default('PENDING'),
+    metaMessageId: varchar('meta_message_id', { length: 200 }),
+    replyToMetaMessageId: varchar('reply_to_meta_message_id', { length: 200 }),
+    textContent: text('text_content'),
+    templateName: varchar('template_name', { length: 512 }),
+    templateLanguage: varchar('template_language', { length: 10 }),
+    templateParameters: jsonb('template_parameters').$type<string[] | null>(),
+    mediaId: varchar('media_id', { length: 200 }),
+    mediaUrl: varchar('media_url', { length: 2048 }),
+    errorCode: varchar('error_code', { length: 50 }),
+    errorMessage: text('error_message'),
+    sentByUserId: uuid('sent_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    isTest: boolean('is_test').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('messages_meta_message_id_idx').on(table.metaMessageId),
+    index('messages_contact_idx').on(table.contactId),
+    index('messages_conversation_idx').on(table.conversationId),
+    index('messages_campaign_idx').on(table.campaignId),
+    index('messages_campaign_recipient_idx').on(table.campaignRecipientId),
+    index('messages_status_idx').on(table.status),
+  ],
+);
+
+export const messageStatusEvents = pgTable(
+  'message_status_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }),
+    campaignRecipientId: uuid('campaign_recipient_id').references(() => campaignRecipients.id, { onDelete: 'set null' }),
+    metaMessageId: varchar('meta_message_id', { length: 200 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull(),
+    errorCode: varchar('error_code', { length: 50 }),
+    errorMessage: text('error_message'),
+    eventTimestamp: timestamp('event_timestamp', { withTimezone: true }).notNull(),
+    rawEventReference: varchar('raw_event_reference', { length: 255 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('message_status_events_message_idx').on(table.messageId),
+    index('message_status_events_recipient_idx').on(table.campaignRecipientId),
+    index('message_status_events_meta_message_id_idx').on(table.metaMessageId),
+    index('message_status_events_event_timestamp_idx').on(table.eventTimestamp),
+  ],
+);
+
+export type ConversationRow = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+export type CampaignRow = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
+export type CampaignRecipientRow = typeof campaignRecipients.$inferSelect;
+export type NewCampaignRecipient = typeof campaignRecipients.$inferInsert;
+export type MessageRow = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
+export type MessageStatusEventRow = typeof messageStatusEvents.$inferSelect;
+export type NewMessageStatusEvent = typeof messageStatusEvents.$inferInsert;

@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 
-import { WEBHOOK_QUEUE } from '../../../common/queue/queue.module';
+import { WEBHOOK_QUEUE, WHATSAPP_STATUS_RECONCILIATION_QUEUE } from '../../../common/queue/queue.module';
 import { WebhookEventsDao } from './webhook-events.dao';
 import { eventTypeSummary, parseWebhookPayload } from './webhook-parser';
 import type { WebhookEventRow } from '../../../db/schema';
+import type { NormalizedWebhookResult } from '@wa/shared';
 
 const MAX_EVENT_TYPE_LENGTH = 255;
 
@@ -14,6 +15,7 @@ export class WebhookProcessingService {
 
   constructor(
     @Inject(WEBHOOK_QUEUE) private readonly webhookQueue: Queue,
+    @Inject(WHATSAPP_STATUS_RECONCILIATION_QUEUE) private readonly statusQueue: Queue,
     private readonly eventsDao: WebhookEventsDao,
   ) {}
 
@@ -65,6 +67,11 @@ export class WebhookProcessingService {
 
       const summary = eventTypeSummary(eventTypes);
       await this.eventsDao.markProcessed(event.id, summary.slice(0, MAX_EVENT_TYPE_LENGTH));
+
+      // Publish each normalized status/inbound event to the campaign status-reconciliation
+      // queue. The campaigns module consumes these to update messages, campaign recipients,
+      // reply attribution, and opt-out handling. The webhook module stays decoupled.
+      await this.publishStatusEvents(event.id, result);
     } catch (error) {
       this.logger.warn(`Failed to process webhook event ${event.id}`, error instanceof Error ? error.stack : String(error));
       await this.eventsDao.markFailed(
@@ -79,5 +86,28 @@ export class WebhookProcessingService {
    */
   async handleJob(job: Job<{ eventId: string }>): Promise<void> {
     await this.processEvent(job.data.eventId);
+  }
+
+  private async publishStatusEvents(webhookEventId: string, result: NormalizedWebhookResult): Promise<void> {
+    for (const [index, event] of result.events.entries()) {
+      const kind = event.kind === 'status' ? 'status' : 'message';
+      try {
+        await this.statusQueue.add(
+          'reconcile',
+          { kind, payload: event.kind === 'status' ? event.status : event.message, webhookEventId },
+          {
+            jobId: `recon:${webhookEventId}:${index}`,
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 1000 },
+            removeOnComplete: { count: 5000 },
+            removeOnFail: { count: 5000 },
+          },
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to enqueue status event for webhook ${webhookEventId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
   }
 }

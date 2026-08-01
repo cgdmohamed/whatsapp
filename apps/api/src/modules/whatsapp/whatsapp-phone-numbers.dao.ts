@@ -27,6 +27,10 @@ export class WhatsAppPhoneNumbersDao {
     });
   }
 
+  findById(id: string): Promise<WhatsAppPhoneNumberRow | undefined> {
+    return this.db.query.whatsappPhoneNumbers.findFirst({ where: eq(whatsappPhoneNumbers.id, id) });
+  }
+
   async replaceAllForAccount(accountId: string, numbers: NewWhatsAppPhoneNumber[]): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
