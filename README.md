@@ -17,7 +17,9 @@ real-time updates — all behind your own API and database.
 - **Team inbox** — incoming conversations, assignments, internal notes, quick
   replies, media, and opt-out (stop) processing.
 - **Templates** — sync WhatsApp message templates from Meta, draft with
-  variable components, submit for approval.
+  variable components and a WhatsApp-style **live preview** (device mockup,
+  sample values, variable inspector), submit for approval; sample values are
+  sent to Meta as `example` payloads so variable templates pass review.
 - **Reports** — dashboard KPIs, campaign performance, failure analysis, and
   CSV report exports (queued, processed by a BullMQ worker).
 - **Help Center** — built-in bilingual (Arabic/English) user guide with
@@ -69,7 +71,12 @@ cp apps/api/.env.example apps/api/.env
 pnpm db:migrate:deploy
 pnpm db:seed
 
-# 4. Run the API (http://localhost:4000/api) and web (http://localhost:5173)
+# 4. (Optional) Seed the built-in bilingual Help Center content
+pnpm db:help-seed
+pnpm db:help-seed-1a     # email/notifications articles
+pnpm db:help-seed-2a     # template preview / WhatsApp-style articles
+
+# 5. Run the API (http://localhost:4000/api) and web (http://localhost:5173)
 pnpm dev:api
 pnpm dev:web
 ```
@@ -78,6 +85,11 @@ Default seeded admin (dev only): `admin@whatsapp.local` /
 `ChangeMeNow_2026!` — change it on first login.
 
 Swagger docs: http://localhost:4000/api/docs (set `SWAGGER_ENABLED=true`).
+
+> **Meta credentials:** optional in `.env` (blank values are treated as not
+> configured). The access token and WABA ID are always taken from the
+> dashboard at **Settings → WhatsApp**, which is the source of truth; values
+> stored there take precedence over `.env`.
 
 ## Project layout
 
@@ -98,7 +110,7 @@ docker-compose.yml, Dockerfile, ecosystem.config.js
 ```bash
 pnpm typecheck      # all packages
 pnpm lint
-pnpm test           # API unit + integration (176 tests, no external deps)
+pnpm test           # API unit + integration (221 tests, no external deps)
 pnpm --filter @wa/api test:e2e   # webhook E2E (needs local Postgres + Redis)
 ```
 

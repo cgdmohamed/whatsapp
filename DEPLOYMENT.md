@@ -38,7 +38,9 @@ focused on request latency.
 ## 3. Configuration
 
 All configuration is environment variables read by the API
-(`apps/api/.env` in dev, real env in prod). See `apps/api/.env.example`.
+(`apps/api/.env` in dev, real env in prod). See `apps/api/.env.example` —
+**required** variables are marked there; every optional variable tolerates a
+blank value (treated as "not configured") rather than failing to boot.
 
 Critical variables:
 
@@ -51,10 +53,19 @@ Critical variables:
 | `WEB_ORIGIN` | Comma-separated browser origins allowed via CORS |
 | `TRUST_PROXY` | Set to the number of reverse-proxy hops (e.g. `1` behind Nginx) |
 | `PROCESS_ROLE` | `api` (default) or `worker` |
-| `META_*` | Meta WhatsApp Business Cloud API credentials (optional until sending is needed) |
 | `PORT` | HTTP port, default `4000` |
 | `MAIL_*` | Transactional email (optional): `MAIL_ENABLED`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_EMAIL`, `MAIL_FROM_NAME`, `MAIL_REPLY_TO` |
 | `APP_PUBLIC_URL` | Public origin used to build password-reset links (default `http://localhost:5173`) |
+| `META_*` | Meta WhatsApp Business Cloud API credentials — **optional fallbacks only**, see below |
+| `SEED_ADMIN_*` | Admin bootstrap for `pnpm db:seed` (all three together, or all blank) |
+
+> **Meta credentials live in the dashboard, not `.env`.** The access token and
+> WABA ID are always read from the database and set at **Settings → WhatsApp**
+> (the dashboard). `META_APP_SECRET`, `META_VERIFY_TOKEN`, and
+> `META_GRAPH_API_VERSION` in env are only fallbacks used until the same values
+> are saved in the dashboard — stored values always win. `META_ACCESS_TOKEN`,
+> `META_WABA_ID`, and `META_PHONE_NUMBER_ID` in env are not read by the API at
+> all.
 
 > **Secrets:** `ACCESS_TOKEN_SECRET` and `APP_ENCRYPTION_KEY` must be stable
 > across restarts. Rotating them logs out every user / re-encrypts nothing —
@@ -108,6 +119,7 @@ pnpm db:migrate:deploy      # ORM migrator against DATABASE_URL
 pnpm db:seed                # idempotent admin bootstrap (optional)
 pnpm db:help-seed           # seed the built-in bilingual Help Center content (optional)
 pnpm db:help-seed-1a        # seed email/notifications Help Center articles (optional)
+pnpm db:help-seed-2a        # seed template preview / WhatsApp-style articles (optional)
 ```
 
 ### 5.3 Run under PM2
@@ -226,6 +238,11 @@ All HTTP requests are logged with a request id that is echoed back in
 - **Meta webhooks** must be configured to point at `https://<host>/api/webhooks/whatsapp`
   with the `META_VERIFY_TOKEN` you configured; the API validates the
   `X-Hub-Signature-256` header against the app secret.
+- **Template creation with variables** sends Meta `example` values derived from
+  the sample values entered in the create dialog (body, text header, and dynamic
+  URL buttons). If a template is rejected for its variable format, the API
+  returns an actionable message — variables must be numbered sequentially
+  `{{1}}, {{2}}, …` starting at `{{1}}` across header, body, and button URLs.
 - **Scale**: multiple API/worker instances are safe (Redis-coordinated jobs).
   Watch memory (PM2 `max_memory_restart: 512M` is set) and Postgres connection
   counts (`pool` sizing in `database.module.ts`).
