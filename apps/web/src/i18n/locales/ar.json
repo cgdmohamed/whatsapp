@@ -73,7 +73,9 @@
     "priority": "الأولوية",
     "inbox": "البريد الوارد",
     "darkMode": "التبديل إلى الوضع الداكن",
-    "lightMode": "التبديل إلى الوضع الفاتح"
+    "lightMode": "التبديل إلى الوضع الفاتح",
+    "next": "التالي",
+    "email": "البريد الإلكتروني"
   },
   "roles": {
     "ADMIN": "مدير النظام",
@@ -255,7 +257,8 @@
     "tokenUpdatedAt": "آخر تحديث للرمز",
     "lastConnectionTest": "آخر اختبار اتصال",
     "tabOverview": "نظرة عامة",
-    "tabTemplates": "القوالب"
+    "tabTemplates": "القوالب",
+    "status": "الحالة"
   },
   "templates": {
     "title": "قوالب الرسائل",
@@ -971,6 +974,7 @@
     "downloadFailed": "فشل التنزيل.",
     "download": "تنزيل",
     "none": "لا توجد عمليات تصدير بعد",
+    "filterType": "تصفية حسب النوع",
     "types": {
       "contacts": "تصدير جهات الاتصال",
       "campaign-recipients": "تصدير المستلمين",
@@ -1099,7 +1103,9 @@
     "nextArticle": "التالي",
     "backToCategory": "كل المقالات في {{category}}",
     "roleRequired": "الأدوار: {{roles}}",
-    "allRoles": "كل الأدوار"
+    "allRoles": "كل الأدوار",
+    "noContent": "لا يوجد محتوى متاح لهذه المقالة.",
+    "fallbackNotice": "عرض بلغة بديلة"
   },
   "helpAdmin": {
     "title": "مركز المساعدة",

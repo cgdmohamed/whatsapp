@@ -73,7 +73,9 @@
     "priority": "Priority",
     "inbox": "Inbox",
     "darkMode": "Switch to dark mode",
-    "lightMode": "Switch to light mode"
+    "lightMode": "Switch to light mode",
+    "next": "Next",
+    "email": "Email"
   },
   "roles": {
     "ADMIN": "Admin",
@@ -255,7 +257,8 @@
     "tokenUpdatedAt": "Token updated",
     "lastConnectionTest": "Last connection test",
     "tabOverview": "Overview",
-    "tabTemplates": "Templates"
+    "tabTemplates": "Templates",
+    "status": "Status"
   },
   "templates": {
     "title": "Message templates",
@@ -971,6 +974,7 @@
     "downloadFailed": "Download failed.",
     "download": "Download",
     "none": "No exports yet",
+    "filterType": "Filter by type",
     "types": {
       "contacts": "Export contacts",
       "campaign-recipients": "Export recipients",
@@ -1099,7 +1103,9 @@
     "nextArticle": "Next",
     "backToCategory": "All articles in {{category}}",
     "roleRequired": "Roles: {{roles}}",
-    "allRoles": "All roles"
+    "allRoles": "All roles",
+    "noContent": "No content available for this article.",
+    "fallbackNotice": "Showing fallback language"
   },
   "helpAdmin": {
     "title": "Help Center",
