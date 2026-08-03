@@ -156,13 +156,14 @@ export interface CreateTemplateButtonInput {
   text: string;
   url?: string;
   phone_number?: string;
+  example?: string[];
 }
 
 export interface CreateTemplateComponentInput {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
   format?: string;
   text?: string;
-  example?: { header_text?: string[]; body_text?: string[] };
+  example?: { header_text?: string[]; body_text?: string[] | string[][] };
   buttons?: CreateTemplateButtonInput[];
 }
 

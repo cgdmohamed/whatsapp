@@ -10,6 +10,31 @@ const hex64 = z
 
 const durationRegex = /^[1-9]\d*[smhd]$/;
 
+const optionalSecretString = (min: number, message: string) =>
+  z
+    .string()
+    .optional()
+    .refine((value) => value === undefined || value.trim() === '' || value.length >= min, { message });
+
+const optionalOrDefault = <T extends z.ZodTypeAny>(schema: T): z.ZodEffects<T> =>
+  z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), schema);
+
+const boolEnv = z.preprocess((value) => {
+  if (value === undefined || value === null || typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'off', ''].includes(normalized)) {
+      return false;
+    }
+  }
+  return value;
+}, z.boolean());
+
 export const apiEnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -36,36 +61,38 @@ export const apiEnvSchema = z
       .union([z.literal('false'), z.coerce.number().int().min(0).max(10)])
       .default(1),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-    LOG_PRETTY: z.coerce.boolean().default(false),
-    RATE_LIMIT_DISABLED: z.coerce.boolean().default(false),
-    SWAGGER_ENABLED: z.coerce.boolean().default(true),
+    LOG_PRETTY: boolEnv.default(false),
+    RATE_LIMIT_DISABLED: boolEnv.default(false),
+    SWAGGER_ENABLED: boolEnv.default(true),
     META_APP_ID: z.string().optional(),
-    META_APP_SECRET: z.string().min(16, 'META_APP_SECRET must be at least 16 characters').optional(),
-    META_VERIFY_TOKEN: z.string().min(8, 'META_VERIFY_TOKEN must be at least 8 characters').optional(),
-    META_ACCESS_TOKEN: z.string().min(16, 'META_ACCESS_TOKEN must be at least 16 characters').optional(),
+    META_APP_SECRET: optionalSecretString(16, 'META_APP_SECRET must be at least 16 characters when provided'),
+    META_VERIFY_TOKEN: optionalSecretString(8, 'META_VERIFY_TOKEN must be at least 8 characters when provided'),
+    META_ACCESS_TOKEN: optionalSecretString(16, 'META_ACCESS_TOKEN must be at least 16 characters when provided'),
     META_WABA_ID: z.string().optional(),
     META_PHONE_NUMBER_ID: z.string().optional(),
-    META_GRAPH_API_VERSION: z
-      .string()
-      .regex(/^v\d+\.\d+$/, 'META_GRAPH_API_VERSION must look like v21.0')
-      .default('v21.0'),
+    META_GRAPH_API_VERSION: optionalOrDefault(
+      z
+        .string()
+        .regex(/^v\d+\.\d+$/, 'META_GRAPH_API_VERSION must look like v21.0')
+        .default('v21.0'),
+    ),
     EXPORTS_DIR: z.string().default('./exports'),
     IMPORT_UPLOAD_DIR: z.string().default('./data/imports'),
     INBOX_MEDIA_DIR: z.string().default('./data/inbox-media'),
-    INBOX_MEDIA_SIGNING_SECRET: z.string().min(32, 'INBOX_MEDIA_SIGNING_SECRET must be at least 32 characters').optional(),
+    INBOX_MEDIA_SIGNING_SECRET: optionalSecretString(32, 'INBOX_MEDIA_SIGNING_SECRET must be at least 32 characters when provided'),
     APP_PUBLIC_URL: z.string().url('APP_PUBLIC_URL must be a valid URL').default('http://localhost:5173'),
-    MAIL_ENABLED: z.coerce.boolean().default(false),
+    MAIL_ENABLED: boolEnv.default(false),
     MAIL_HOST: z.string().optional(),
-    MAIL_PORT: z.coerce.number().int().min(1).max(65535).optional(),
-    MAIL_SECURE: z.coerce.boolean().default(true),
+    MAIL_PORT: optionalOrDefault(z.coerce.number().int().min(1).max(65535).optional()),
+    MAIL_SECURE: boolEnv.default(true),
     MAIL_USERNAME: z.string().optional(),
     MAIL_PASSWORD: z.string().optional(),
-    MAIL_FROM_EMAIL: z.string().email('MAIL_FROM_EMAIL must be a valid email').optional(),
+    MAIL_FROM_EMAIL: optionalOrDefault(z.string().email('MAIL_FROM_EMAIL must be a valid email').optional()),
     MAIL_FROM_NAME: z.string().optional(),
-    MAIL_REPLY_TO: z.string().email('MAIL_REPLY_TO must be a valid email').optional(),
+    MAIL_REPLY_TO: optionalOrDefault(z.string().email('MAIL_REPLY_TO must be a valid email').optional()),
     SEED_ADMIN_NAME: z.string().optional(),
-    SEED_ADMIN_EMAIL: z.string().email().optional(),
-    SEED_ADMIN_PASSWORD: z.string().min(8, 'SEED_ADMIN_PASSWORD must be at least 8 characters').optional(),
+    SEED_ADMIN_EMAIL: optionalOrDefault(z.string().email().optional()),
+    SEED_ADMIN_PASSWORD: optionalSecretString(8, 'SEED_ADMIN_PASSWORD must be at least 8 characters when provided'),
   })
   .superRefine((env, ctx) => {
     const mailFields = [env.MAIL_HOST, env.MAIL_PORT, env.MAIL_USERNAME, env.MAIL_PASSWORD, env.MAIL_FROM_EMAIL];

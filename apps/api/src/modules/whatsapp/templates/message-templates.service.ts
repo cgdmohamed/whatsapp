@@ -189,7 +189,7 @@ export class MessageTemplatesService {
       throw new BadRequestException(ERROR_CODES.WHATSAPP_NOT_CONFIGURED);
     }
 
-    const built = buildCreateComponents(input.components);
+    const built = buildCreateComponents(input.components, input.samples);
     if (built.issues.length > 0) {
       throw new BadRequestException({
         message: built.issues,
@@ -260,7 +260,14 @@ export class MessageTemplatesService {
   private describeError(error: unknown): string {
     if (error instanceof MetaApiError) {
       const { normalized } = error;
-      return [normalized.title, normalized.message].filter(Boolean).join(': ');
+      const combined = [normalized.title, normalized.message].filter(Boolean).join(': ');
+      if (/variable|{{#}}/i.test(combined)) {
+        return (
+          'Template variables must use the format {{1}}, {{2}}, {{3}}… numbered sequentially and starting at {{1}}. ' +
+          'Fix the variables in the header, body, and button URLs, then try again.'
+        );
+      }
+      return combined;
     }
     return error instanceof Error ? error.message : String(error);
   }

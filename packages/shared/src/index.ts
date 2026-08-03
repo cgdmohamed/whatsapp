@@ -466,6 +466,7 @@ export const createMessageTemplateSchema = z.object({
     .regex(TEMPLATE_NAME_PATTERN, 'TEMPLATE_NAME_INVALID'),
   language: z.string().trim().min(2, 'TEMPLATE_LANGUAGE_REQUIRED').max(10, 'TEMPLATE_LANGUAGE_TOO_LONG'),
   category: z.enum(TEMPLATE_CATEGORIES),
+  samples: z.array(z.string()).max(10).optional(),
   components: z
     .array(createMessageTemplateComponentSchema)
     .min(1, 'TEMPLATE_COMPONENT_REQUIRED')

@@ -9,7 +9,7 @@ import type {
 } from '@wa/shared';
 import { TEMPLATE_BUTTON_TYPES, TEMPLATE_COMPONENT_TYPES } from '@wa/shared';
 
-import type { CreateTemplateComponentInput, MetaTemplateComponent } from '../meta-api/meta-api.types';
+import type { CreateTemplateButtonInput, CreateTemplateComponentInput, MetaTemplateComponent } from '../meta-api/meta-api.types';
 
 const HAS_VARIABLE_PATTERN = /\{\{\d+\}\}/;
 const NON_NUMERIC_VARIABLE_PATTERN = /\{\{(?!\d+\}\})/;
@@ -175,10 +175,18 @@ export interface BuiltCreateComponents {
   issues: string[];
 }
 
-export function buildCreateComponents(input: CreateMessageTemplateComponentInput[]): BuiltCreateComponents {
+export function buildCreateComponents(
+  input: CreateMessageTemplateComponentInput[],
+  samples: string[] = [],
+): BuiltCreateComponents {
   const issues: string[] = [];
   const metaComponents: CreateTemplateComponentInput[] = [];
   let hasBody = false;
+
+  const sampleFor = (position: number): string => {
+    const provided = samples[position - 1];
+    return provided !== undefined && provided.trim().length > 0 ? provided.trim() : `Example ${position}`;
+  };
 
   for (const component of input) {
     const meta: CreateTemplateComponentInput = { type: component.type };
@@ -187,21 +195,39 @@ export function buildCreateComponents(input: CreateMessageTemplateComponentInput
       if (format === 'TEXT') {
         meta.format = 'TEXT';
         meta.text = component.text ?? '';
+        const headerNumbers = extractVariableNames(meta.text).map((name) => Number(name.replace(/[^\d]/g, '')));
+        if (headerNumbers.length > 0) {
+          meta.example = { header_text: [sampleFor(headerNumbers[0]!) ] };
+        }
       } else {
         meta.format = format;
       }
     } else if (component.type === 'BUTTONS') {
-      meta.buttons = (component.buttons ?? []).map((button) => ({
-        type: button.type,
-        text: button.text,
-        ...(button.type === 'URL' && button.url ? { url: button.url } : {}),
-        ...(button.type === 'PHONE_NUMBER' && button.phoneNumber ? { phone_number: button.phoneNumber } : {}),
-      }));
+      meta.buttons = (component.buttons ?? []).map((button) => {
+        const built: CreateTemplateButtonInput = {
+          type: button.type,
+          text: button.text,
+          ...(button.type === 'URL' && button.url ? { url: button.url } : {}),
+          ...(button.type === 'PHONE_NUMBER' && button.phoneNumber ? { phone_number: button.phoneNumber } : {}),
+        };
+        if (button.type === 'URL' && button.url && HAS_VARIABLE_PATTERN.test(button.url)) {
+          const urlNumbers = extractVariableNames(button.url).map((name) => Number(name.replace(/[^\d]/g, '')));
+          if (urlNumbers.length > 0) {
+            const resolved = button.url.replace(/\{\{(\d+)\}\}/g, (_match, number: string) => sampleFor(Number(number)));
+            built.example = [resolved];
+          }
+        }
+        return built;
+      });
     } else {
       if (component.type === 'BODY') {
         hasBody = true;
       }
       meta.text = component.text ?? '';
+      const bodyNumbers = extractVariableNames(meta.text).map((name) => Number(name.replace(/[^\d]/g, '')));
+      if (component.type === 'BODY' && bodyNumbers.length > 0) {
+        meta.example = { body_text: [bodyNumbers.map((number) => sampleFor(number))] };
+      }
     }
     metaComponents.push(meta);
   }

@@ -273,6 +273,10 @@ function CreateTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       language: language.trim(),
       category,
       components,
+      samples: Object.keys(sampleValues)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map((position) => sampleValues[position] ?? ''),
     };
 
     try {
