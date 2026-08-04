@@ -4,8 +4,9 @@
 #   docker compose build
 #   docker compose up -d
 #
-# The web container serves the SPA on port 80 and reverse-proxies /api to the
-# API container, so the whole stack is reachable at http://<host>.
+# The web container serves the SPA and reverse-proxies /api to the API
+# container, so the whole stack is reachable at http://127.0.0.1:8080.
+# The API is bound to http://127.0.0.1:4000.
 #
 # Production checklist before `up`:
 #   - Copy apps/api/.env into ./deploy/env/api.env and fill real secrets.
@@ -48,6 +49,7 @@ services:
       context: .
       target: api
     restart: "no"
+    working_dir: /app/apps/api
     env_file:
       - ./deploy/env/api.env
     depends_on:
@@ -55,7 +57,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["node", "apps/api/dist/scripts/migrate.js"]
+    command: ["node", "dist/scripts/migrate.js"]
     networks:
       - backend
 
@@ -76,7 +78,7 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - api_data:/app/apps/api/data
       - api_exports:/app/apps/api/exports
@@ -113,7 +115,7 @@ services:
     depends_on:
       - api
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     networks:
       - backend
 

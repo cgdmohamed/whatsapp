@@ -9,6 +9,9 @@ WORKDIR /app
 
 # Install dependencies first to leverage Docker layer caching.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# The workspace tsconfigs all extend ../../tsconfig.base.json; it must be
+# present before any package build (tsc -b) runs.
+COPY tsconfig.base.json ./
 COPY apps ./apps
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
@@ -38,7 +41,10 @@ CMD ["node", "apps/api/dist/main.js"]
 
 # ---------- One-shot migration image (run, migrate, exit) ----------
 FROM api AS migrate
-CMD ["node", "apps/api/dist/scripts/migrate.js"]
+# Migrations live at /app/apps/api/drizzle and the script resolves them via a
+# relative "./drizzle" path, so it must run from the api package directory.
+WORKDIR /app/apps/api
+CMD ["node", "dist/scripts/migrate.js"]
 
 # ---------- Web: static assets served by nginx ----------
 FROM nginx:1.27-alpine AS web
