@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -89,5 +90,11 @@ export class ImportsController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="import-${id}-rejected.csv"`);
     return new StreamableFile(buffer);
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'MANAGER')
+  remove(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<{ deletedRows: number; deletedContacts: number }> {
+    return this.importsService.remove(id, actor);
   }
 }

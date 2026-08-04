@@ -31,6 +31,7 @@ import {
 import { AlertTriangle, CheckCircle2, FileUp, RefreshCw } from 'lucide-react';
 
 import { useConfigureImport, useStartImport, useUploadImport } from './api';
+import { useLists, useTags } from '../contacts/api';
 
 const IMPORTABLE_FIELDS: readonly ImportableField[] = [
   'phone',
@@ -41,6 +42,10 @@ const IMPORTABLE_FIELDS: readonly ImportableField[] = [
   'company',
   'language',
   'source',
+  'website',
+  'city',
+  'segment',
+  'address',
   'tags',
   'list',
   'opt_in_status',
@@ -57,6 +62,10 @@ const ALIASES: Record<string, readonly string[]> = {
   company: ['company', 'organization', 'organisation', 'business', 'الشركة', 'المؤسسة'],
   language: ['language', 'lang', 'اللغة', 'لغة'],
   source: ['source', 'المصدر', 'مصدر'],
+  website: ['website', 'url', 'site', 'webpage', 'الموقع', 'الموقع الالكتروني', 'موقع الكتروني'],
+  city: ['city', 'town', 'المدينة', 'مدينة'],
+  segment: ['segment', 'segments', 'tier', 'segment type', 'الشريحة', 'شريحة'],
+  address: ['address', 'addr', 'عنوان', 'العنوان'],
   tags: ['tags', 'tag', 'وسوم', 'الوسوم', 'كلمات مفتاحية'],
   list: ['list', 'listname', 'قائمة', 'القائمة', 'اسم القائمة'],
   opt_in_status: ['optin', 'opt in', 'opt-in', 'optin status', 'opt-in status', 'consent', 'consent status', 'حالة الموافقة', 'موافقة'],
@@ -100,6 +109,8 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
   const uploadMutation = useUploadImport();
   const configureMutation = useConfigureImport();
   const startMutation = useStartImport();
+  const { data: listsData } = useLists({ page: 1, pageSize: 100 });
+  const { data: tagsData } = useTags({ page: 1, pageSize: 100 });
 
   const [step, setStep] = React.useState<Step>('upload');
   const [file, setFile] = React.useState<File | null>(null);
@@ -110,6 +121,8 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
   const [updateMode, setUpdateMode] = React.useState<'none' | 'merge-empty' | 'replace'>('none');
   const [skipDuplicates, setSkipDuplicates] = React.useState(false);
   const [defaultCountry, setDefaultCountry] = React.useState('EG');
+  const [listId, setListId] = React.useState('');
+  const [tagIds, setTagIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (open) {
@@ -122,6 +135,8 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
       setUpdateMode('none');
       setSkipDuplicates(false);
       setDefaultCountry('EG');
+      setListId('');
+      setTagIds([]);
     }
   }, [open]);
 
@@ -164,7 +179,8 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
         updateMode,
         skipDuplicates,
         treatMissingConsentAsUnknown: true,
-        tagIds: [],
+        listId: listId || undefined,
+        tagIds,
       },
     };
     try {
@@ -314,6 +330,49 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
                   <input type="checkbox" checked={skipDuplicates} onChange={(event) => setSkipDuplicates(event.target.checked)} />
                   {t('imports.skipDuplicates')}
                 </label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('imports.assign')}</Label>
+              <div className="grid gap-4 rounded-md border p-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('imports.assignList')}</Label>
+                  <Select value={listId} onValueChange={setListId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('imports.noList')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">{t('imports.noList')}</SelectItem>
+                      {(listsData?.items ?? []).map((list) => (
+                        <SelectItem key={list.id} value={list.id}>
+                          {list.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('imports.assignTags')}</Label>
+                  <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
+                    {(tagsData?.items ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">{t('imports.noTags')}</p>
+                    ) : (
+                      (tagsData?.items ?? []).map((tag) => (
+                        <label key={tag.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
+                          <input
+                            type="checkbox"
+                            checked={tagIds.includes(tag.id)}
+                            onChange={() =>
+                              setTagIds((current) => (current.includes(tag.id) ? current.filter((id) => id !== tag.id) : [...current, tag.id]))
+                            }
+                          />
+                          <span className="truncate">{tag.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

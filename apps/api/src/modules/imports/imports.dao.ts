@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, desc, eq, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { ImportJobQuery, ImportJobDto, ImportRowDto } from '@wa/shared';
 import { IMPORT_JOB_STATUSES } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
-import { importJobs, importRows, type ImportJobRow, type ImportRowRow } from '../../db/schema';
+import { contacts, importJobs, importRows, type ImportJobRow, type ImportRowRow } from '../../db/schema';
 
 export interface ImportJobListResult {
   items: ImportJobDto[];
@@ -76,6 +76,21 @@ export class ImportsDao {
 
   delete(id: string): Promise<void> {
     return this.db.delete(importJobs).where(eq(importJobs.id, id)).then(() => undefined);
+  }
+
+  async createdContactIdsForJob(jobId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ contactId: importRows.contactId })
+      .from(importRows)
+      .where(and(eq(importRows.importJobId, jobId), eq(importRows.status, 'CREATED')));
+    return rows.map((row) => row.contactId).filter((id): id is string => id !== null);
+  }
+
+  async deleteContacts(contactIds: string[]): Promise<void> {
+    if (contactIds.length === 0) {
+      return;
+    }
+    await this.db.delete(contacts).where(inArray(contacts.id, contactIds));
   }
 
   insert(values: Omit<typeof importJobs.$inferInsert, 'id'>): Promise<ImportJobRow[]> {

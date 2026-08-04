@@ -113,6 +113,22 @@ export function ContactDetailSheet({ contact, onOpenChange }: ContactDetailSheet
             </dl>
           </div>
 
+          {detail.customFields && Object.keys(detail.customFields).length > 0 ? (
+            <>
+              <Separator />
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">{t('contacts.customFields')}</h3>
+                <dl className="space-y-1 text-sm">
+                  {Object.entries(detail.customFields).map(([key, value]) => (
+                    <Row key={key} label={t(`imports.fields.${key}`, { defaultValue: key })}>
+                      <span dir="auto">{value}</span>
+                    </Row>
+                  ))}
+                </dl>
+              </div>
+            </>
+          ) : null}
+
           <Separator />
 
           <div className="space-y-2">

@@ -2,6 +2,14 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { IMPORT_JOB_STATUSES, type ImportJobDto, type ImportJobStatus } from '@wa/shared';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   Button,
   DropdownMenu,
@@ -26,12 +34,12 @@ import {
   TableRow,
   toast,
 } from '@wa/ui';
-import { Download, FileUp, MoreHorizontal, Table2 } from 'lucide-react';
+import { Download, FileUp, MoreHorizontal, Table2, Trash2 } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
 import { ContextualHelpButton } from '../features/help/help-drawer-provider';
 import { formatDateTime } from '../lib/format';
-import { useImportJobs, useImportRejectedCsv } from '../features/imports/api';
+import { useDeleteImport, useImportJobs, useImportRejectedCsv } from '../features/imports/api';
 import { ImportWizardDialog } from '../features/imports/import-wizard-dialog';
 import { ImportDetailDialog } from '../features/imports/import-detail-dialog';
 
@@ -64,9 +72,24 @@ export function ImportsPage() {
 
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [detailJob, setDetailJob] = React.useState<ImportJobDto | null>(null);
+  const [deleteJob, setDeleteJob] = React.useState<ImportJobDto | null>(null);
   const rejectedMutation = useImportRejectedCsv();
+  const deleteMutation = useDeleteImport();
 
   const jobs = data;
+
+  const handleDelete = async () => {
+    if (!deleteJob) {
+      return;
+    }
+    try {
+      const result = await deleteMutation.mutateAsync(deleteJob.id);
+      toast.success(t('imports.deleted', { count: result.deletedContacts }));
+      setDeleteJob(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   const handleDownloadRejected = async (job: ImportJobDto) => {
     try {
@@ -196,6 +219,14 @@ export function ImportsPage() {
                                   {t('imports.downloadRejected')}
                                 </DropdownMenuItem>
                               ) : null}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                disabled={job.status === 'VALIDATING' || job.status === 'PROCESSING'}
+                                onClick={() => setDeleteJob(job)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {t('imports.delete')}
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -232,6 +263,24 @@ export function ImportsPage() {
 
       <ImportWizardDialog open={wizardOpen} onOpenChange={setWizardOpen} />
       {detailJob ? <ImportDetailDialog job={detailJob} onOpenChange={(open) => !open && setDetailJob(null)} /> : null}
+
+      <AlertDialog open={deleteJob !== null} onOpenChange={(open) => !open && setDeleteJob(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('imports.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription className="break-all">
+              {t('imports.deleteDescription', { count: deleteJob?.createdRows ?? 0 })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleDelete()} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? <Spinner size="sm" /> : null}
+              {t('imports.deleteConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

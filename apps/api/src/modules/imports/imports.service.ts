@@ -245,6 +245,33 @@ export class ImportsService {
     }
   }
 
+  async remove(jobId: string, actor: AuthUser): Promise<{ deletedRows: number; deletedContacts: number }> {
+    assertCan(actor.role, 'import.manage');
+    const job = await this.requireJob(jobId);
+    if (job.status === 'VALIDATING' || job.status === 'PROCESSING') {
+      throw new BadRequestException(ERROR_CODES.IMPORT_JOB_STATE_INVALID);
+    }
+
+    const contactIds = await this.importsDao.createdContactIdsForJob(jobId);
+    await this.importsDao.deleteContacts(contactIds);
+    await this.importsDao.delete(jobId);
+    this.storage.remove(jobId);
+
+    await this.auditService.record({
+      actorUserId: actor.id,
+      action: AUDIT_ACTIONS.IMPORT_DELETE,
+      entityType: 'import_job',
+      entityId: jobId,
+      metadata: {
+        filename: job.originalFilename,
+        deletedRows: job.createdRows,
+        deletedContacts: contactIds.length,
+      },
+    });
+
+    return { deletedRows: job.createdRows, deletedContacts: contactIds.length };
+  }
+
   private async requireJob(jobId: string): Promise<ImportJobRow> {
     const job = await this.importsDao.findById(jobId);
     if (!job) {

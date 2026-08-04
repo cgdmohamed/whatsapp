@@ -58,6 +58,15 @@ function slugify(name: string): string {
     .slice(0, 120);
 }
 
+function buildCustomFields(candidate: ImportCandidate): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (candidate.fields.website) fields.website = candidate.fields.website;
+  if (candidate.fields.city) fields.city = candidate.fields.city;
+  if (candidate.fields.segment) fields.segment = candidate.fields.segment;
+  if (candidate.fields.address) fields.address = candidate.fields.address;
+  return fields;
+}
+
 @Injectable()
 export class ImportsProcessor {
   constructor(
@@ -183,6 +192,7 @@ export class ImportsProcessor {
     }
 
     const suppressed = await this.hasActiveSuppressionByPhone(this.db, candidate.normalizedPhone);
+    const customFields = buildCustomFields(candidate);
     const insertValues: Partial<typeof contacts.$inferInsert> & { phoneE164: string } = {
       phoneE164: candidate.normalizedPhone,
       phoneCountry: null,
@@ -193,6 +203,7 @@ export class ImportsProcessor {
       company: candidate.fields.company ?? null,
       language: candidate.fields.language as never,
       source: candidate.fields.source ?? 'IMPORT',
+      customFields: Object.keys(customFields).length > 0 ? customFields : null,
     };
 
     const [row] = await tx.insert(contacts).values(insertValues).returning();
@@ -220,7 +231,7 @@ export class ImportsProcessor {
       return;
     }
 
-    const patch: Record<string, string | null> = {};
+    const patch: Record<string, string | null | Record<string, string>> = {};
     const fields: Array<[keyof typeof contacts.$inferSelect, string | null | undefined]> = [
       ['firstName', candidate.fields.firstName],
       ['lastName', candidate.fields.lastName],
@@ -244,8 +255,23 @@ export class ImportsProcessor {
       }
     }
 
+    const customFields = buildCustomFields(candidate);
+    if (Object.keys(customFields).length > 0) {
+      const merged = { ...(current.customFields ?? {}) };
+      for (const [key, value] of Object.entries(customFields)) {
+        if (options.updateMode === 'merge-empty') {
+          if (value.trim() !== '') {
+            merged[key] = value;
+          }
+        } else {
+          merged[key] = value;
+        }
+      }
+      patch.customFields = merged;
+    }
+
     if (Object.keys(patch).length > 0) {
-      await tx.update(contacts).set(patch as Partial<typeof contacts.$inferInsert>).where(eq(contacts.id, contactId));
+      await tx.update(contacts).set(patch as unknown as Partial<typeof contacts.$inferInsert>).where(eq(contacts.id, contactId));
     }
 
     const suppressed = await this.hasActiveSuppressionByPhone(this.db, current.phoneE164);

@@ -92,6 +92,15 @@ export function useStartImport() {
   });
 }
 
+export function useDeleteImport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) =>
+      apiFetch<{ deletedRows: number; deletedContacts: number }>(`/imports/${jobId}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: importsKeys.all }),
+  });
+}
+
 export function useImportRejectedCsv() {
   return useMutation({
     mutationFn: async (jobId: string) => {

@@ -39,6 +39,22 @@ describe('autoMapColumns', () => {
     expect(mapping['الايميل']).toBe('email');
   });
 
+  it('maps custom-field Arabic headers (location, city, segment, address)', () => {
+    const mapping = autoMapColumns(['الموقع', 'المدينة', 'الشريحة', 'العنوان']);
+    expect(mapping['الموقع']).toBe('website');
+    expect(mapping['المدينة']).toBe('city');
+    expect(mapping['الشريحة']).toBe('segment');
+    expect(mapping['العنوان']).toBe('address');
+  });
+
+  it('maps English custom-field headers', () => {
+    const mapping = autoMapColumns(['Website', 'City', 'Segment', 'Address']);
+    expect(mapping['Website']).toBe('website');
+    expect(mapping['City']).toBe('city');
+    expect(mapping['Segment']).toBe('segment');
+    expect(mapping['Address']).toBe('address');
+  });
+
   it('prefers the first header for a field', () => {
     const mapping = autoMapColumns(['Phone', 'Mobile', 'Email']);
     expect(mapping['Phone']).toBe('phone');
@@ -108,5 +124,28 @@ describe('validateImport', () => {
     const result = validateImport(parsed, { phone: 'phone', opt_in_status: 'opt_in_status' }, DEFAULT_OPTIONS);
     expect(result.candidates[0]?.optInStatus).toBeNull();
     expect(result.validCount).toBe(1);
+  });
+
+  it('captures website, city, segment and address into candidate fields', () => {
+    const parsed = parsedFrom([
+      {
+        phone: '01012345678',
+        website: 'https://example.com',
+        city: 'Riyadh',
+        segment: '1 - أولوية قصوى',
+        address: 'King Fahd Road 12',
+      },
+    ]);
+    const result = validateImport(
+      parsed,
+      { phone: 'phone', website: 'website', city: 'city', segment: 'segment', address: 'address' },
+      DEFAULT_OPTIONS,
+    );
+    const candidate = result.candidates[0];
+    expect(result.validCount).toBe(1);
+    expect(candidate?.fields.website).toBe('https://example.com');
+    expect(candidate?.fields.city).toBe('Riyadh');
+    expect(candidate?.fields.segment).toBe('1 - أولوية قصوى');
+    expect(candidate?.fields.address).toBe('King Fahd Road 12');
   });
 });

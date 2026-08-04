@@ -16,6 +16,10 @@ export interface ImportCandidate {
     company?: string | null;
     language?: string | null;
     source?: string | null;
+    website?: string | null;
+    city?: string | null;
+    segment?: string | null;
+    address?: string | null;
   };
   tags: string[];
   list: string | null;
@@ -42,6 +46,10 @@ const VALUE_ALIASES: Record<string, readonly string[]> = {
   company: ['company', 'organization', 'organisation', 'employer', 'شركة', 'الشركة', 'المؤسسة'],
   language: ['language', 'lang', 'لغة', 'اللغة'],
   source: ['source', 'المصدر', 'مصدر'],
+  website: ['website', 'url', 'site', 'webpage', 'الموقع', 'الموقعالالكتروني', 'موقعالكتروني', 'الموقع الالكتروني'],
+  city: ['city', 'town', 'المدينة', 'مدينة'],
+  segment: ['segment', 'segments', 'tier', 'segmenttype', 'الشريحة', 'شريحة'],
+  address: ['address', 'addr', 'عنوان', 'العنوان'],
   tags: ['tags', 'tag', 'labels', 'label', 'وسوم', 'وسم', 'تصنيفات'],
   list: ['list', 'lists', 'group', 'قائمة', 'القائمة', 'مجموعة'],
   opt_in_status: ['optinstatus', 'opt-instatus', 'opt_in', 'optin', 'consent', 'consentstatus', 'حالةالموافقة', 'الموافقة'],
@@ -233,6 +241,18 @@ export function validateImport(
           break;
         case 'source':
           fields.source = value;
+          break;
+        case 'website':
+          fields.website = value;
+          break;
+        case 'city':
+          fields.city = value;
+          break;
+        case 'segment':
+          fields.segment = value;
+          break;
+        case 'address':
+          fields.address = value;
           break;
         case 'tags':
           tags = splitListValue(value);
