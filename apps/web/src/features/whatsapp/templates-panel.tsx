@@ -44,10 +44,12 @@ import {
   Textarea,
   toast,
 } from '@wa/ui';
-import { AlertTriangle, FileText, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, FileText, Plug, Plus, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../lib/auth';
 import { formatDateTime } from '../../lib/format';
+import { ApiClientError } from '../../lib/api';
 import { EmptyStateHelpLink } from '../help/empty-state-help-link';
 import { TemplateLivePreview } from '../preview/template-live-preview';
 import { useCreateTemplate, useMessageTemplates, useSyncTemplates, useTemplateSyncStatus } from './templates-api';
@@ -498,9 +500,11 @@ export function TemplatesPanel() {
     sortOrder: 'desc',
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useMessageTemplates(query);
+  const { data, isLoading, isError, refetch, isFetching, error } = useMessageTemplates(query);
   const { data: syncStatus } = useTemplateSyncStatus();
   const syncMutation = useSyncTemplates();
+
+  const notConfigured = isError && (error as ApiClientError | null)?.code === 'WHATSAPP_NOT_CONFIGURED';
 
   const [previewTemplate, setPreviewTemplate] = React.useState<MessageTemplateDto | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -532,7 +536,7 @@ export function TemplatesPanel() {
             {syncStatus ? ` · ${t('templates.approvedCount', { count: syncStatus.approvedCount })}` : ''}
           </p>
         </div>
-        {canManage ? (
+        {canManage && !notConfigured ? (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => void handleSync()} disabled={syncMutation.isPending}>
               {syncMutation.isPending ? <Spinner size="sm" /> : <RefreshCw className="h-4 w-4" />}
@@ -612,7 +616,22 @@ export function TemplatesPanel() {
         </Select>
       </div>
 
-      {isError ? (
+      {notConfigured ? (
+        <div className="rounded-lg border bg-card">
+          <EmptyState
+            icon={Plug}
+            title={t('templates.notConfiguredTitle')}
+            description={t('templates.notConfiguredDescription')}
+          >
+            <Link to="/whatsapp">
+              <Button>
+                <Plug className="h-4 w-4" />
+                {t('templates.connectAccount')}
+              </Button>
+            </Link>
+          </EmptyState>
+        </div>
+      ) : isError ? (
         <ErrorState title={t('common.error')} retryLabel={t('common.retry')} onRetry={() => void refetch()} loading={isFetching} />
       ) : (
         <div className="rounded-lg border bg-card">
