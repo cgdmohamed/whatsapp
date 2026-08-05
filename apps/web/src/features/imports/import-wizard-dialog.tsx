@@ -209,246 +209,248 @@ export function ImportWizardDialog({ open, onOpenChange }: ImportWizardDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] w-full max-w-[calc(100vw-2rem)] flex-col gap-0 p-0 sm:max-w-2xl">
+        <DialogHeader className="px-4 pb-2 pt-4 sm:px-6 sm:pb-3 sm:pt-6">
           <DialogTitle>{t('imports.wizardTitle')}</DialogTitle>
           <DialogDescription>{t('imports.wizardDescription')}</DialogDescription>
         </DialogHeader>
 
-        {step === 'upload' ? (
-          <div className="space-y-4">
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-10 text-center hover:bg-muted/50">
-              <FileUp className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm font-medium">{file ? file.name : t('imports.dropFile')}</span>
-              <span className="text-xs text-muted-foreground">{t('imports.supportedFormats')}</span>
-              <Input
-                type="file"
-                accept=".csv,.xlsx"
-                className="sr-only"
-                disabled={uploadMutation.isPending}
-                onChange={(event) => void handleFileSelected(event.target.files?.[0] ?? null)}
-              />
-            </label>
-            {uploadMutation.isPending ? (
-              <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Spinner size="sm" />
-                {t('imports.uploading')}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {step === 'configure' && upload ? (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                {upload.originalFilename} · {upload.totalRows} {t('imports.rows')}
-              </p>
-              {upload.sheets.length > 1 ? (
-                <div className="flex items-center gap-2">
-                  <Label className="shrink-0 text-xs">{t('imports.sheet')}</Label>
-                  <Select value={sheetName} onValueChange={setSheetName}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {upload.sheets.map((sheet) => (
-                        <SelectItem key={sheet} value={sheet}>
-                          {sheet}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+          {step === 'upload' ? (
+            <div className="space-y-4">
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center hover:bg-muted/50 sm:p-10">
+                <FileUp className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm font-medium">{file ? file.name : t('imports.dropFile')}</span>
+                <span className="text-xs text-muted-foreground">{t('imports.supportedFormats')}</span>
+                <Input
+                  type="file"
+                  accept=".csv,.xlsx"
+                  className="sr-only"
+                  disabled={uploadMutation.isPending}
+                  onChange={(event) => void handleFileSelected(event.target.files?.[0] ?? null)}
+                />
+              </label>
+              {uploadMutation.isPending ? (
+                <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Spinner size="sm" />
+                  {t('imports.uploading')}
+                </p>
               ) : null}
             </div>
+          ) : null}
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t('imports.columnMapping')}</Label>
-              <div className="space-y-2 rounded-md border p-3">
-                {headers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t('imports.noHeaders')}</p>
-                ) : (
-                  headers.map((header) => (
-                    <div key={header} className="grid gap-2 sm:grid-cols-2">
-                      <p className="truncate text-sm" dir="ltr">
-                        {header}
-                      </p>
-                      <Select
-                        value={columnMapping[header] ?? ''}
-                        onValueChange={(value) =>
-                          setColumnMapping((current) => {
-                            const next = { ...current };
-                            if (value) {
-                              next[header] = value as ImportableField;
-                            } else {
-                              delete next[header];
-                            }
-                            return next;
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('imports.notImported')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">{t('imports.notImported')}</SelectItem>
-                          {IMPORTABLE_FIELDS.map((field) => (
-                            <SelectItem key={field} value={field}>
-                              {t(`imports.fields.${field}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+          {step === 'configure' && upload ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  {upload.originalFilename} · {upload.totalRows} {t('imports.rows')}
+                </p>
+                {upload.sheets.length > 1 ? (
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <Label className="shrink-0 text-xs">{t('imports.sheet')}</Label>
+                    <Select value={sheetName} onValueChange={setSheetName}>
+                      <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {upload.sheets.map((sheet) => (
+                          <SelectItem key={sheet} value={sheet}>
+                            {sheet}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('imports.columnMapping')}</Label>
+                <div className="space-y-2 rounded-md border p-3">
+                  {headers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t('imports.noHeaders')}</p>
+                  ) : (
+                    headers.map((header) => (
+                      <div key={header} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
+                        <p className="truncate text-sm" dir="ltr">
+                          {header}
+                        </p>
+                        <Select
+                          value={columnMapping[header] ?? ''}
+                          onValueChange={(value) =>
+                            setColumnMapping((current) => {
+                              const next = { ...current };
+                              if (value) {
+                                next[header] = value as ImportableField;
+                              } else {
+                                delete next[header];
+                              }
+                              return next;
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('imports.notImported')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">{t('imports.notImported')}</SelectItem>
+                            {IMPORTABLE_FIELDS.map((field) => (
+                              <SelectItem key={field} value={field}>
+                                {t(`imports.fields.${field}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('imports.options')}</Label>
+                <div className="grid gap-4 rounded-md border p-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('imports.updateMode')}</Label>
+                    <Select value={updateMode} onValueChange={(value) => setUpdateMode(value as typeof updateMode)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('imports.modes.none')}</SelectItem>
+                        <SelectItem value="merge-empty">{t('imports.modes.merge-empty')}</SelectItem>
+                        <SelectItem value="replace">{t('imports.modes.replace')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('imports.defaultCountry')}</Label>
+                    <Input value={defaultCountry} maxLength={2} className="uppercase" onChange={(event) => setDefaultCountry(event.target.value.toUpperCase())} />
+                  </div>
+                  <label className="flex items-end gap-2 pb-2 text-sm">
+                    <input type="checkbox" checked={skipDuplicates} onChange={(event) => setSkipDuplicates(event.target.checked)} />
+                    {t('imports.skipDuplicates')}
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('imports.assign')}</Label>
+                <div className="grid gap-4 rounded-md border p-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('imports.assignList')}</Label>
+                    <Select value={listId} onValueChange={setListId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('imports.noList')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">{t('imports.noList')}</SelectItem>
+                        {(listsData?.items ?? []).map((list) => (
+                          <SelectItem key={list.id} value={list.id}>
+                            {list.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('imports.assignTags')}</Label>
+                    <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {(tagsData?.items ?? []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground">{t('imports.noTags')}</p>
+                      ) : (
+                        (tagsData?.items ?? []).map((tag) => (
+                          <label key={tag.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
+                            <input
+                              type="checkbox"
+                              checked={tagIds.includes(tag.id)}
+                              onChange={() =>
+                                setTagIds((current) => (current.includes(tag.id) ? current.filter((id) => id !== tag.id) : [...current, tag.id]))
+                              }
+                            />
+                            <span className="truncate">{tag.name}</span>
+                          </label>
+                        ))
+                      )}
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t('imports.options')}</Label>
-              <div className="grid gap-4 rounded-md border p-3 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('imports.updateMode')}</Label>
-                  <Select value={updateMode} onValueChange={(value) => setUpdateMode(value as typeof updateMode)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('imports.modes.none')}</SelectItem>
-                      <SelectItem value="merge-empty">{t('imports.modes.merge-empty')}</SelectItem>
-                      <SelectItem value="replace">{t('imports.modes.replace')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('imports.defaultCountry')}</Label>
-                  <Input value={defaultCountry} maxLength={2} className="uppercase" onChange={(event) => setDefaultCountry(event.target.value.toUpperCase())} />
-                </div>
-                <label className="flex items-end gap-2 pb-2 text-sm">
-                  <input type="checkbox" checked={skipDuplicates} onChange={(event) => setSkipDuplicates(event.target.checked)} />
-                  {t('imports.skipDuplicates')}
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t('imports.assign')}</Label>
-              <div className="grid gap-4 rounded-md border p-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('imports.assignList')}</Label>
-                  <Select value={listId} onValueChange={setListId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('imports.noList')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">{t('imports.noList')}</SelectItem>
-                      {(listsData?.items ?? []).map((list) => (
-                        <SelectItem key={list.id} value={list.id}>
-                          {list.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('imports.assignTags')}</Label>
-                  <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
-                    {(tagsData?.items ?? []).length === 0 ? (
-                      <p className="text-xs text-muted-foreground">{t('imports.noTags')}</p>
-                    ) : (
-                      (tagsData?.items ?? []).map((tag) => (
-                        <label key={tag.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
-                          <input
-                            type="checkbox"
-                            checked={tagIds.includes(tag.id)}
-                            onChange={() =>
-                              setTagIds((current) => (current.includes(tag.id) ? current.filter((id) => id !== tag.id) : [...current, tag.id]))
-                            }
-                          />
-                          <span className="truncate">{tag.name}</span>
-                        </label>
-                      ))
-                    )}
                   </div>
                 </div>
               </div>
-            </div>
 
-            {upload.previewRows.length > 0 ? (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">{t('imports.preview')}</Label>
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {headers.map((header) => (
-                          <TableHead key={header} className="whitespace-nowrap" dir="ltr">
-                            {header}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {upload.previewRows.map((row, rowIndex) => (
-                        <TableRow key={rowIndex}>
-                          {row.map((cell, cellIndex) => (
-                            <TableCell key={cellIndex} className="whitespace-nowrap text-xs">
-                              {String(cell ?? '')}
-                            </TableCell>
+              {upload.previewRows.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('imports.preview')}</Label>
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {headers.map((header) => (
+                            <TableHead key={header} className="whitespace-nowrap" dir="ltr">
+                              {header}
+                            </TableHead>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {upload.previewRows.map((row, rowIndex) => (
+                          <TableRow key={rowIndex}>
+                            {row.map((cell, cellIndex) => (
+                              <TableCell key={cellIndex} className="whitespace-nowrap text-xs">
+                                {String(cell ?? '')}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {step === 'review' && summary ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label={t('imports.totalRows')} value={summary.totalRows} />
-              <Stat label={t('imports.validRows')} value={summary.validRows} />
-              <Stat label={t('imports.invalidRows')} value={summary.invalidRows} />
-              <Stat label={t('imports.duplicateRows')} value={summary.duplicateRows} />
+              ) : null}
             </div>
-            {summary.invalidRows === 0 ? (
-              <Alert variant="info">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>{t('imports.allValid')}</AlertTitle>
-                <AlertDescription>{t('imports.allValidDescription')}</AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{t('imports.hasIssues')}</AlertTitle>
-                <AlertDescription>{t('imports.hasIssuesDescription')}</AlertDescription>
-              </Alert>
-            )}
-            {summary.issues.length > 0 ? (
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-3 text-xs">
-                {summary.issues.map((issue) => (
-                  <p key={`${issue.rowNumber}-${issue.reason}`} className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">{t('imports.row')} {issue.rowNumber}</span>
-                    <span>{issue.reason}</span>
-                  </p>
-                ))}
-              </div>
-            ) : null}
-            {summary.invalidRows > 0 ? (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <RefreshCw className="h-3 w-3" />
-                {t('imports.invalidWillSkip')}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
 
-        <DialogFooter>
+          {step === 'review' && summary ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Stat label={t('imports.totalRows')} value={summary.totalRows} />
+                <Stat label={t('imports.validRows')} value={summary.validRows} />
+                <Stat label={t('imports.invalidRows')} value={summary.invalidRows} />
+                <Stat label={t('imports.duplicateRows')} value={summary.duplicateRows} />
+              </div>
+              {summary.invalidRows === 0 ? (
+                <Alert variant="info">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>{t('imports.allValid')}</AlertTitle>
+                  <AlertDescription>{t('imports.allValidDescription')}</AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{t('imports.hasIssues')}</AlertTitle>
+                  <AlertDescription>{t('imports.hasIssuesDescription')}</AlertDescription>
+                </Alert>
+              )}
+              {summary.issues.length > 0 ? (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-3 text-xs">
+                  {summary.issues.map((issue) => (
+                    <p key={`${issue.rowNumber}-${issue.reason}`} className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">{t('imports.row')} {issue.rowNumber}</span>
+                      <span>{issue.reason}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+              {summary.invalidRows > 0 ? (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <RefreshCw className="h-3 w-3" />
+                  {t('imports.invalidWillSkip')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter className="border-t px-4 py-3 sm:px-6 sm:py-4">
           {step === 'configure' ? (
             <Button variant="outline" onClick={() => setStep('upload')} disabled={busy}>
               {t('common.back')}

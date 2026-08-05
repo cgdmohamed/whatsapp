@@ -29,46 +29,48 @@ export function ImportDetailDialog({ job, onOpenChange }: ImportDetailDialogProp
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{job.originalFilename}</DialogTitle>
+      <DialogContent className="flex max-h-[85vh] w-full max-w-[calc(100vw-2rem)] flex-col gap-0 p-0 sm:max-w-3xl">
+        <DialogHeader className="px-4 pb-2 pt-4 sm:px-6 sm:pt-6">
+          <DialogTitle className="break-all">{job.originalFilename}</DialogTitle>
         </DialogHeader>
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-3/4" />
-          </div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('imports.noRows')}</p>
-        ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">{t('imports.row')}</TableHead>
-                  <TableHead>{t('imports.phone')}</TableHead>
-                  <TableHead>{t('common.status')}</TableHead>
-                  <TableHead>{t('imports.errors')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-muted-foreground">{row.rowNumber}</TableCell>
-                    <TableCell className="break-all" dir="ltr">
-                      {row.normalizedPhone ?? '—'}
-                    </TableCell>
-                    <TableCell>{t(`imports.rowStatus.${row.status}`)}</TableCell>
-                    <TableCell className="max-w-64 break-words text-muted-foreground">
-                      {row.errorMessages.length > 0 ? row.errorMessages.join('; ') : '—'}
-                    </TableCell>
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-3/4" />
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('imports.noRows')}</p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">{t('imports.row')}</TableHead>
+                    <TableHead>{t('imports.phone')}</TableHead>
+                    <TableHead>{t('common.status')}</TableHead>
+                    <TableHead>{t('imports.errors')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="text-muted-foreground">{row.rowNumber}</TableCell>
+                      <TableCell className="break-all" dir="ltr">
+                        {row.normalizedPhone ?? '—'}
+                      </TableCell>
+                      <TableCell>{t(`imports.rowStatus.${row.status}`)}</TableCell>
+                      <TableCell className="max-w-64 break-words text-muted-foreground">
+                        {row.errorMessages.length > 0 ? row.errorMessages.join('; ') : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
