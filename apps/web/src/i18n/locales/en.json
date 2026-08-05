@@ -768,7 +768,18 @@
     "noListsToAdd": "No more lists to add",
     "listAdded": "Added to list",
     "listRemoved": "Removed from list",
-    "removeListTitle": "Remove from list"
+    "removeListTitle": "Remove from list",
+    "delete": "Delete",
+    "deleteTitle": "Delete contact?",
+    "deleteDescription": "This will permanently delete this contact, including its tags, lists, consent history and suppression records. This cannot be undone.",
+    "deleteConfirm": "Delete contact",
+    "deleted": "Contact deleted",
+    "deletedMany": "{{count}} contacts deleted",
+    "deleteSelected": "Delete selected",
+    "selectedCount": "{{count}} selected",
+    "selectAll": "Select all contacts on this page",
+    "bulkDeleteTitle": "Delete {{count}} contacts?",
+    "bulkDeleteDescription": "This will permanently delete the selected contacts, including their tags, lists, consent history and suppression records. This cannot be undone."
   },
   "tags": {
     "title": "Tags",

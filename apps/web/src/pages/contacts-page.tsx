@@ -26,7 +26,7 @@ import {
   TableRow,
   toast,
 } from '@wa/ui';
-import { Download, MoreHorizontal, Plus, Search, UserRound, X } from 'lucide-react';
+import { Download, MoreHorizontal, Plus, Search, Trash2, UserRound, X } from 'lucide-react';
 
 import { PageHeader } from '../components/page-header';
 import { ContextualHelpButton } from '../features/help/help-drawer-provider';
@@ -37,7 +37,7 @@ import { formatDateTime } from '../lib/format';
 import { useBulkContactAction, useContacts } from '../features/contacts/api';
 import { ContactFormDialog } from '../features/contacts/contact-form-dialog';
 import { ContactDetailSheet } from '../features/contacts/contact-detail-sheet';
-import { ArchiveDialog, ConsentDialog, SuppressDialog } from '../features/contacts/contact-action-dialogs';
+import { ArchiveDialog, BulkDeleteContactsDialog, ConsentDialog, DeleteContactDialog, SuppressDialog } from '../features/contacts/contact-action-dialogs';
 
 const STATUS_BADGE: Record<ContactStatus, 'success' | 'warning' | 'muted' | 'destructive' | 'outline'> = {
   ACTIVE: 'success',
@@ -53,7 +53,7 @@ const OPT_IN_BADGE: Record<OptInStatus, 'success' | 'destructive' | 'muted'> = {
   UNKNOWN: 'muted',
 };
 
-type ActiveDialog = { type: 'create' | 'consent' | 'suppress' | 'archive' } | null;
+type ActiveDialog = { type: 'create' | 'consent' | 'suppress' | 'archive' | 'delete' } | null;
 
 export function ContactsPage() {
   const { t } = useTranslation();
@@ -83,9 +83,57 @@ export function ContactsPage() {
 
   const [selected, setSelected] = React.useState<ContactDto | null>(null);
   const [dialog, setDialog] = React.useState<ActiveDialog>(null);
+  const [editContact, setEditContact] = React.useState<ContactDto | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
+  const selectAllRef = React.useRef<HTMLInputElement>(null);
   const bulkExport = useBulkContactAction();
 
   const hasFilters = search.length > 0 || statusFilter !== '' || optInFilter !== '' || suppressedFilter !== '';
+
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, debouncedSearch, statusFilter, optInFilter, suppressedFilter]);
+
+  React.useEffect(() => {
+    if (page > 1 && data && data.totalPages > 0 && data.items.length === 0) {
+      setPage(data.totalPages);
+    }
+  }, [page, data]);
+
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      const total = data?.items.length ?? 0;
+      selectAllRef.current.indeterminate = total > 0 && selectedIds.size > 0 && selectedIds.size < total;
+    }
+  }, [selectedIds, data]);
+
+  const toggleRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!data) {
+      return;
+    }
+    if (data.items.length > 0 && selectedIds.size === data.items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(data.items.map((contact) => contact.id)));
+    }
+  };
+
+  const handleBulkDeleted = () => {
+    setSelectedIds(new Set());
+  };
 
   const resetFilters = () => {
     setSearch('');
@@ -211,6 +259,21 @@ export function ContactsPage() {
         ) : null}
       </div>
 
+      {isManagerOrAdmin && selectedIds.size > 0 ? (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+          <p className="text-sm font-medium">{t('contacts.selectedCount', { count: selectedIds.size })}</p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+              {t('common.clear')}
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteIds([...selectedIds])}>
+              <Trash2 className="h-4 w-4" />
+              {t('contacts.deleteSelected')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {isError ? (
         <ErrorState title={t('common.error')} retryLabel={t('common.retry')} onRetry={() => void refetch()} loading={isFetching} />
       ) : (
@@ -218,6 +281,18 @@ export function ContactsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  {isManagerOrAdmin ? (
+                    <input
+                      ref={selectAllRef}
+                      type="checkbox"
+                      checked={data != null && data.items.length > 0 && selectedIds.size === data.items.length}
+                      onChange={toggleSelectAll}
+                      aria-label={t('contacts.selectAll')}
+                      className="size-4 accent-primary"
+                    />
+                  ) : null}
+                </TableHead>
                 <TableHead>{t('contacts.contact')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
                 <TableHead>{t('contacts.optInStatus')}</TableHead>
@@ -231,7 +306,7 @@ export function ContactsPage() {
               {isLoading
                 ? Array.from({ length: 6 }).map((_, index) => (
                     <TableRow key={index}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Skeleton className="h-10 w-full" />
                       </TableCell>
                     </TableRow>
@@ -239,6 +314,17 @@ export function ContactsPage() {
                 : data && data.items.length > 0
                   ? data.items.map((contact) => (
                       <TableRow key={contact.id} className="cursor-pointer" onClick={() => setSelected(contact)}>
+                        <TableCell onClick={(event) => event.stopPropagation()} className="w-10">
+                          {isManagerOrAdmin ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(contact.id)}
+                              onChange={() => toggleRow(contact.id)}
+                              aria-label={contact.displayName ?? contact.phoneE164}
+                              className="size-4 accent-primary"
+                            />
+                          ) : null}
+                        </TableCell>
                         <TableCell>
                           <div className="min-w-0">
                             <p className="truncate font-medium">
@@ -283,6 +369,14 @@ export function ContactsPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => setSelected(contact)}>{t('contacts.view')}</DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelected(contact);
+                                  setEditContact(contact);
+                                }}
+                              >
+                                {t('common.edit')}
+                              </DropdownMenuItem>
                               {isManagerOrAdmin ? (
                                 <>
                                   <DropdownMenuItem
@@ -314,6 +408,15 @@ export function ContactsPage() {
                                       {t('contacts.suppress')}
                                     </DropdownMenuItem>
                                   ) : null}
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => {
+                                      setSelected(contact);
+                                      setDialog({ type: 'delete' });
+                                    }}
+                                  >
+                                    {t('contacts.delete')}
+                                  </DropdownMenuItem>
                                 </>
                               ) : null}
                             </DropdownMenuContent>
@@ -323,7 +426,7 @@ export function ContactsPage() {
                     ))
                   : (
                       <TableRow>
-                        <TableCell colSpan={7} className="p-0">
+                        <TableCell colSpan={8} className="p-0">
                           <EmptyState icon={UserRound} title={t('contacts.noContacts')} description={t('contacts.noContactsDescription')}>
                             <EmptyStateHelpLink categorySlug="contacts" slug="importing-contacts-from-excel" />
                           </EmptyState>
@@ -355,9 +458,14 @@ export function ContactsPage() {
       {selected ? <ContactDetailSheet contact={selected} onOpenChange={(open) => !open && setSelected(null)} /> : null}
 
       {dialog?.type === 'create' ? <ContactFormDialog open onOpenChange={(open) => !open && setDialog(null)} contact={null} /> : null}
+      {editContact ? <ContactFormDialog open onOpenChange={(open) => !open && setEditContact(null)} contact={editContact} /> : null}
       {dialog?.type === 'consent' && selected ? <ConsentDialog contact={selected} onOpenChange={() => setDialog(null)} /> : null}
       {dialog?.type === 'suppress' && selected ? <SuppressDialog contact={selected} onOpenChange={() => setDialog(null)} /> : null}
       {dialog?.type === 'archive' && selected ? <ArchiveDialog contact={selected} onOpenChange={() => setDialog(null)} /> : null}
+      {dialog?.type === 'delete' && selected ? <DeleteContactDialog contact={selected} onOpenChange={() => setDialog(null)} /> : null}
+      {bulkDeleteIds.length > 0 ? (
+        <BulkDeleteContactsDialog ids={bulkDeleteIds} onOpenChange={() => setBulkDeleteIds([])} onDeleted={handleBulkDeleted} />
+      ) : null}
     </div>
   );
 }

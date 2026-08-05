@@ -1619,6 +1619,7 @@ export const AUDIT_ACTIONS = {
   WHATSAPP_DISCONNECT: 'whatsapp.disconnect',
   CONTACT_CREATE: 'contact.create',
   CONTACT_UPDATE: 'contact.update',
+  CONTACT_DELETE: 'contact.delete',
   CONTACT_ARCHIVE: 'contact.archive',
   CONTACT_RESTORE: 'contact.restore',
   CONTACT_TAGS_ADD: 'contact.tags_add',

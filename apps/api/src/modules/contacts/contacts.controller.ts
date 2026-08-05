@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -212,5 +213,20 @@ export class ContactsController {
   @Roles('ADMIN')
   unsuppress(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<ContactDto> {
     return this.contactsService.unsuppress(id, actor);
+  }
+
+  @Delete('bulk')
+  @Roles('ADMIN', 'MANAGER')
+  bulkDelete(
+    @Body(new ZodValidationPipe(idListSchema)) input: IdListInput,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ affected: number }> {
+    return this.contactsService.bulkDelete(input.ids, actor);
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'MANAGER')
+  remove(@Param('id') id: string, @CurrentUser() actor: AuthUser): Promise<{ affected: number }> {
+    return this.contactsService.remove(id, actor);
   }
 }

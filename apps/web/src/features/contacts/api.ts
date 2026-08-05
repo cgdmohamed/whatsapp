@@ -201,6 +201,29 @@ export function useBulkContactAction() {
   });
 }
 
+export function useDeleteContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<{ affected: number }>(`/contacts/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: contactsKeys.all });
+      queryClient.invalidateQueries({ queryKey: listsKeys.all });
+    },
+  });
+}
+
+export function useBulkDeleteContacts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<{ affected: number }>('/contacts/bulk', { method: 'DELETE', body: JSON.stringify({ ids }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: contactsKeys.all });
+      queryClient.invalidateQueries({ queryKey: listsKeys.all });
+    },
+  });
+}
+
 export function useTags(query: TagQuery) {
   return useQuery({
     queryKey: tagsKeys.list(query),

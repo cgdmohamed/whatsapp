@@ -37,7 +37,7 @@ import { z } from 'zod';
 
 import { useAuth } from '../../lib/auth';
 import { localizedZodResolver } from '../../lib/validation';
-import { useArchiveContact, useRestoreContact, useSetConsent, useSuppressContact, useUnsuppressContact } from './api';
+import { useArchiveContact, useBulkDeleteContacts, useDeleteContact, useRestoreContact, useSetConsent, useSuppressContact, useUnsuppressContact } from './api';
 
 const consentSchema = z.object({
   status: z.enum(OPT_IN_STATUSES),
@@ -311,6 +311,95 @@ export function UnsuppressDialog({ contact, onOpenChange }: UnsuppressDialogProp
           <AlertDialogCancel disabled={mutation.isPending}>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={() => void handleConfirm()} disabled={mutation.isPending}>
             {t('common.confirm')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+interface DeleteContactDialogProps {
+  contact: ContactDto;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function DeleteContactDialog({ contact, onOpenChange }: DeleteContactDialogProps) {
+  const { t } = useTranslation();
+  const mutation = useDeleteContact();
+
+  const handleConfirm = async () => {
+    try {
+      await mutation.mutateAsync(contact.id);
+      toast.success(t('contacts.deleted'));
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  return (
+    <AlertDialog open onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('contacts.deleteTitle')}</AlertDialogTitle>
+          <AlertDialogDescription className="break-all" dir="ltr">
+            {contact.phoneE164}
+          </AlertDialogDescription>
+          <AlertDialogDescription>{t('contacts.deleteDescription')}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mutation.isPending}>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => void handleConfirm()}
+            disabled={mutation.isPending}
+            className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+          >
+            {mutation.isPending ? <Spinner size="sm" /> : null}
+            {t('contacts.deleteConfirm')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+interface BulkDeleteContactsDialogProps {
+  ids: string[];
+  onOpenChange: (open: boolean) => void;
+  onDeleted?: () => void;
+}
+
+export function BulkDeleteContactsDialog({ ids, onOpenChange, onDeleted }: BulkDeleteContactsDialogProps) {
+  const { t } = useTranslation();
+  const mutation = useBulkDeleteContacts();
+
+  const handleConfirm = async () => {
+    try {
+      const result = await mutation.mutateAsync(ids);
+      toast.success(t('contacts.deletedMany', { count: result.affected }));
+      onDeleted?.();
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  return (
+    <AlertDialog open onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('contacts.bulkDeleteTitle', { count: ids.length })}</AlertDialogTitle>
+          <AlertDialogDescription>{t('contacts.bulkDeleteDescription', { count: ids.length })}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mutation.isPending}>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => void handleConfirm()}
+            disabled={mutation.isPending}
+            className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+          >
+            {mutation.isPending ? <Spinner size="sm" /> : null}
+            {t('contacts.deleteConfirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

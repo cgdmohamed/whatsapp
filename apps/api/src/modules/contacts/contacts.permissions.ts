@@ -8,6 +8,7 @@ export type ContactCapability =
   | 'contact.create'
   | 'contact.edit'
   | 'contact.edit.phone'
+  | 'contact.delete'
   | 'contact.archive'
   | 'contact.restore'
   | 'contact.tags'
@@ -26,6 +27,7 @@ const CAPABILITY_ROLES: Record<ContactCapability, Role[]> = {
   'contact.create': ['ADMIN', 'MANAGER'],
   'contact.edit': ['ADMIN', 'MANAGER', 'AGENT'],
   'contact.edit.phone': ['ADMIN', 'MANAGER'],
+  'contact.delete': ['ADMIN', 'MANAGER'],
   'contact.archive': ['ADMIN', 'MANAGER'],
   'contact.restore': ['ADMIN', 'MANAGER'],
   'contact.tags': ['ADMIN', 'MANAGER'],

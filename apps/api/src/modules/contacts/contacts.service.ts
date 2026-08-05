@@ -50,6 +50,7 @@ const {
   CONTACT_BULK,
   CONTACT_CONSENT_UPDATE,
   CONTACT_CREATE,
+  CONTACT_DELETE,
   CONTACT_LISTS_ADD,
   CONTACT_LISTS_REMOVE,
   CONTACT_RESTORE,
@@ -652,6 +653,60 @@ export class ContactsService {
     });
 
     return { affected };
+  }
+
+  // ---------- Delete ----------
+
+  async remove(id: string, actor: AuthUser): Promise<{ affected: number }> {
+    assertCan(actor.role, 'contact.delete');
+    const contact = await this.requireContact(id);
+    await this.deleteContacts([contact.id]);
+    await this.auditService.record({
+      actorUserId: actor.id,
+      action: CONTACT_DELETE,
+      entityType: 'contact',
+      entityId: contact.id,
+      metadata: { phone: contact.phoneE164 },
+    });
+    return { affected: 1 };
+  }
+
+  async bulkDelete(ids: string[], actor: AuthUser): Promise<{ affected: number }> {
+    assertCan(actor.role, 'contact.delete');
+    if (ids.length === 0) {
+      return { affected: 0 };
+    }
+    const existing = await this.db
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(inArray(contacts.id, ids));
+    const contactIds = existing.map((row) => row.id);
+    if (contactIds.length === 0) {
+      return { affected: 0 };
+    }
+    await this.deleteContacts(contactIds);
+    await this.auditService.record({
+      actorUserId: actor.id,
+      action: CONTACT_BULK,
+      entityType: 'contact',
+      metadata: { action: 'delete', affected: contactIds.length, contactIds: ids },
+    });
+    return { affected: contactIds.length };
+  }
+
+  private async deleteContacts(contactIds: string[]): Promise<void> {
+    const listRows = await this.db
+      .select({ listId: contactListMembers.contactListId })
+      .from(contactListMembers)
+      .where(inArray(contactListMembers.contactId, contactIds));
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(contacts).where(inArray(contacts.id, contactIds));
+    });
+
+    for (const listId of [...new Set(listRows.map((row) => row.listId))]) {
+      await this.listsDao.refreshCount(listId);
+    }
   }
 
   async exportCsv(query: ContactQuery, actor: AuthUser): Promise<ContactDto[]> {
