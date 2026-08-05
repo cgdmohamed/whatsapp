@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
 import { parseApiEnv } from '@wa/config';
+import * as schema from '../db/schema';
 import { helpArticles, helpCategories } from '../db/schema';
 import { sanitizeHelpHtml } from '../modules/help/help-sanitize';
+
+type SeedHelpDb = NodePgDatabase<typeof schema>;
 
 interface CategorySeed {
   slug: string;
@@ -485,15 +488,10 @@ const OTHER_ARTICLES: ArticleSeed[] = [
   { categorySlug: 'security-policies', slug: 'safe-campaign-messaging', titleAr: 'الاستخدام الآمن لرسائل الحملات', titleEn: 'Safe use of campaign messaging', summaryAr: 'تجنب الحظر والرسائل العشوائية.', summaryEn: 'Avoiding blocks and spam complaints.', keywords: ['رسائل', 'messaging', 'آمن'], articleType: 'POLICY', difficulty: 'INTERMEDIATE', featureKey: 'campaigns', routePatterns: ['/campaigns'], sortOrder: 4, contentAr: '<p>أرسل فقط لمن أعطوا الموافقة، واحترم الإلغاء الفوري، وتجنب الادعاءات الممنوعة في القوالب.</p>', contentEn: '<p>Only message opted-in customers, honor opt-outs immediately, and avoid disallowed claims in templates.</p>' },
 ];
 
-async function main(): Promise<void> {
-  const env = parseApiEnv();
-  const pool = new Pool({ connectionString: env.DATABASE_URL });
-  const db = drizzle(pool, { schema: { helpCategories, helpArticles } });
-
+export async function seedHelpCenter(db: SeedHelpDb): Promise<void> {
   const categoryCount = await db.select().from(helpCategories);
   if (categoryCount.length > 0) {
     console.log(`Help Center already seeded (${categoryCount.length} categories); skipping.`);
-    await pool.end();
     return;
   }
 
@@ -553,10 +551,19 @@ async function main(): Promise<void> {
   }
 
   console.log(`Seeded ${CATEGORIES.length} categories and ${published} articles.`);
+}
+
+async function main(): Promise<void> {
+  const env = parseApiEnv();
+  const pool = new Pool({ connectionString: env.DATABASE_URL });
+  const db = drizzle(pool, { schema });
+  await seedHelpCenter(db);
   await pool.end();
 }
 
-void main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

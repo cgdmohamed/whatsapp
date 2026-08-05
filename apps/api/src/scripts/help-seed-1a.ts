@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
 import { parseApiEnv } from '@wa/config';
+import * as schema from '../db/schema';
 import { helpArticles, helpCategories } from '../db/schema';
 import { sanitizeHelpHtml } from '../modules/help/help-sanitize';
+
+type SeedHelpDb = NodePgDatabase<typeof schema>;
 
 interface ArticleSeed {
   categorySlug: string;
@@ -148,11 +151,7 @@ const ARTICLES: ArticleSeed[] = [
   },
 ];
 
-async function main(): Promise<void> {
-  const env = parseApiEnv();
-  const pool = new Pool({ connectionString: env.DATABASE_URL });
-  const db = drizzle(pool, { schema: { helpCategories, helpArticles } });
-
+export async function seedHelpCenter1a(db: SeedHelpDb): Promise<void> {
   const categories = await db.select().from(helpCategories);
   const categoryIdBySlug = new Map(categories.map((category) => [category.slug, category.id]));
 
@@ -190,10 +189,19 @@ async function main(): Promise<void> {
     inserted += 1;
   }
   console.log(`Help Center 1A: inserted ${inserted} articles.`);
+}
+
+async function main(): Promise<void> {
+  const env = parseApiEnv();
+  const pool = new Pool({ connectionString: env.DATABASE_URL });
+  const db = drizzle(pool, { schema });
+  await seedHelpCenter1a(db);
   await pool.end();
 }
 
-void main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
