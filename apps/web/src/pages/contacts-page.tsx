@@ -34,7 +34,7 @@ import { EmptyStateHelpLink } from '../features/help/empty-state-help-link';
 import { useDebouncedValue } from '../hooks/use-debounce';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
-import { useBulkContactAction, useContacts } from '../features/contacts/api';
+import { useExportContacts, useContacts } from '../features/contacts/api';
 import { ContactFormDialog } from '../features/contacts/contact-form-dialog';
 import { ContactDetailSheet } from '../features/contacts/contact-detail-sheet';
 import { ArchiveDialog, BulkDeleteContactsDialog, ConsentDialog, DeleteContactDialog, SuppressDialog } from '../features/contacts/contact-action-dialogs';
@@ -87,7 +87,7 @@ export function ContactsPage() {
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
   const selectAllRef = React.useRef<HTMLInputElement>(null);
-  const bulkExport = useBulkContactAction();
+  const exportMutation = useExportContacts();
 
   const hasFilters = search.length > 0 || statusFilter !== '' || optInFilter !== '' || suppressedFilter !== '';
 
@@ -148,11 +148,20 @@ export function ContactsPage() {
       return;
     }
     try {
-      await bulkExport.mutateAsync({
-        action: 'export',
-        contactIds: data.items.map((contact) => contact.id),
-      });
-      toast.info(t('contacts.exportHint'));
+      await exportMutation.mutateAsync({ query });
+      toast.success(t('contacts.exported'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleExportSelected = async () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+    try {
+      await exportMutation.mutateAsync({ query: { page: 1, pageSize: 100, sortBy: 'createdAt', sortOrder: 'desc' }, ids: [...selectedIds] });
+      toast.success(t('contacts.exported'));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -252,7 +261,7 @@ export function ContactsPage() {
           ) : null}
         </div>
         {isManagerOrAdmin ? (
-          <Button variant="outline" size="sm" onClick={() => void handleExport()} disabled={bulkExport.isPending || (data?.items.length ?? 0) === 0}>
+          <Button variant="outline" size="sm" onClick={() => void handleExport()} disabled={exportMutation.isPending || (data?.items.length ?? 0) === 0}>
             <Download className="h-4 w-4" />
             {t('contacts.exportCsv')}
           </Button>
@@ -263,6 +272,10 @@ export function ContactsPage() {
         <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
           <p className="text-sm font-medium">{t('contacts.selectedCount', { count: selectedIds.size })}</p>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void handleExportSelected()} disabled={exportMutation.isPending}>
+              <Download className="h-4 w-4" />
+              {t('contacts.exportSelected')}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
               {t('common.clear')}
             </Button>

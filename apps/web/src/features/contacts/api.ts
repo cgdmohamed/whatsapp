@@ -23,6 +23,7 @@ import type {
 } from '@wa/shared';
 
 import { apiFetch } from '../../lib/api';
+import { API_URL } from '../../lib/config';
 
 export const contactsKeys = {
   all: ['contacts'] as const,
@@ -198,6 +199,33 @@ export function useBulkContactAction() {
     mutationFn: (input: BulkContactActionInput) =>
       apiFetch<{ affected: number }>('/contacts/bulk', { method: 'POST', body: JSON.stringify(input) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: contactsKeys.all }),
+  });
+}
+
+export function useExportContacts() {
+  return useMutation({
+    mutationFn: async ({ query, ids }: { query: ContactQuery; ids?: string[] }) => {
+      const params = new URLSearchParams(buildContactQuery(query));
+      if (ids && ids.length > 0) {
+        params.set('ids', ids.join(','));
+      }
+      const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+      const response = await fetch(`${base}/contacts/export?${params.toString()}`, { method: 'GET', credentials: 'include' });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
+        const message = body?.message;
+        throw new Error(Array.isArray(message) ? message.join('\n') : (message ?? `Request failed with status ${response.status}`));
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    },
   });
 }
 

@@ -708,6 +708,7 @@ export const contactQuerySchema = z.object({
   createdTo: z.string().trim().optional(),
   messageFrom: z.string().trim().optional(),
   messageTo: z.string().trim().optional(),
+  ids: z.string().trim().optional(),
   sortBy: z
     .enum(['createdAt', 'updatedAt', 'displayName', 'phoneE164', 'lastInboundMessageAt', 'lastOutboundMessageAt'])
     .default('createdAt'),

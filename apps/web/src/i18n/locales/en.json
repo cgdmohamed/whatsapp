@@ -710,6 +710,8 @@
     "updatedAt": "Updated",
     "view": "View details",
     "exportCsv": "Export CSV",
+    "exportSelected": "Export selected",
+    "exported": "Export complete. Your CSV download has started.",
     "exportHint": "Export complete. Check your notifications or refresh to download.",
     "noContacts": "No contacts",
     "noContactsDescription": "Create a contact or import a list to get started.",

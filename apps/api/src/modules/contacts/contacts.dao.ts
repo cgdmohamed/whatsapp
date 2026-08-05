@@ -36,6 +36,15 @@ export interface ContactListResult {
 
 function buildConditions(db: DrizzleDB, query: ContactQuery): SQL[] {
   const conditions: SQL[] = [];
+  if (query.ids) {
+    const idList = query.ids
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (idList.length > 0) {
+      conditions.push(inArray(contacts.id, idList));
+    }
+  }
   if (query.search) {
     const term = `%${query.search}%`;
     const searchCondition = or(
