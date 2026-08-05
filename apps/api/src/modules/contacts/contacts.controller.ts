@@ -71,7 +71,7 @@ function buildCsv(contacts: ContactDto[]): string {
         .join(','),
     );
   }
-  return `${lines.join('\r\n')}\r\n`;
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
 
 @ApiTags('contacts')

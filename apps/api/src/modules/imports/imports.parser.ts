@@ -13,6 +13,14 @@ export interface ParsedSheet {
 const MAX_PREVIEW_ROWS = 20;
 const MAX_ROWS = 100_000;
 
+function decodeCsvBuffer(buffer: Buffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder('windows-1256').decode(buffer);
+  }
+}
+
 function autoHeaders(width: number): string[] {
   return Array.from({ length: width }, (_, index) => `column_${index + 1}`);
 }
@@ -34,16 +42,16 @@ function recordsFromArrays(rows: unknown[][], headers: string[], hasHeader: bool
 }
 
 export function parseCsv(buffer: Buffer): ParsedSheet {
+  const content = decodeCsvBuffer(buffer);
   let records: string[][] | undefined;
   try {
-    records = parse(buffer, {
+    records = parse(content, {
       skip_empty_lines: true,
       relax_column_count: true,
-      bom: true,
       trim: true,
     }) as unknown as string[][];
   } catch {
-    records = parse(buffer.toString('utf-8').replace(/^\uFEFF/, ''), {
+    records = parse(content, {
       skip_empty_lines: true,
       relax_column_count: true,
     }) as unknown as string[][];
