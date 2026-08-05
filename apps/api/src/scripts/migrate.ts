@@ -10,6 +10,12 @@ async function main(): Promise<void> {
   const pool = new Pool({ connectionString: env.DATABASE_URL });
   try {
     await migrate(drizzle(pool), { migrationsFolder: './drizzle' });
+    await pool.query(`
+      UPDATE contact_lists cl
+      SET active_contact_count = (
+        SELECT count(*) FROM contact_list_members clm WHERE clm.contact_list_id = cl.id
+      );
+    `);
     console.log('Database migrations applied successfully.');
   } finally {
     await pool.end();

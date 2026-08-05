@@ -35,6 +35,7 @@ import {
   toast,
 } from '@wa/ui';
 import { Download, FileUp, MoreHorizontal, Table2, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { PageHeader } from '../components/page-header';
 import { ContextualHelpButton } from '../features/help/help-drawer-provider';
@@ -42,6 +43,7 @@ import { formatDateTime } from '../lib/format';
 import { useDeleteImport, useImportJobs, useImportRejectedCsv } from '../features/imports/api';
 import { ImportWizardDialog } from '../features/imports/import-wizard-dialog';
 import { ImportDetailDialog } from '../features/imports/import-detail-dialog';
+import { contactsKeys, listsKeys, tagsKeys } from '../features/contacts/api';
 
 const STATUS_BADGE: Record<
   ImportJobStatus,
@@ -69,6 +71,20 @@ export function ImportsPage() {
     pageSize,
     status: statusFilter || undefined,
   });
+
+  const queryClient = useQueryClient();
+  const previousInProgress = React.useRef(true);
+  const hasInProgress = (data?.items ?? []).some((job) => IN_PROGRESS.includes(job.status));
+
+  React.useEffect(() => {
+    const wasInProgress = previousInProgress.current;
+    previousInProgress.current = hasInProgress;
+    if (wasInProgress && !hasInProgress && data && data.items.length > 0) {
+      void queryClient.invalidateQueries({ queryKey: contactsKeys.all });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.all });
+      void queryClient.invalidateQueries({ queryKey: tagsKeys.all });
+    }
+  }, [hasInProgress, data, queryClient]);
 
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [detailJob, setDetailJob] = React.useState<ImportJobDto | null>(null);

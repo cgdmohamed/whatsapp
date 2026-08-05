@@ -127,6 +127,7 @@ export class ImportsProcessor {
     for (let offset = 0; offset < validCandidates.length; offset += BATCH_SIZE) {
       const chunk = validCandidates.slice(offset, offset + BATCH_SIZE);
       const outcomeUpdates: Array<{ rowNumber: number; status: RowStatus; contactId: string | null; errorMessages: string[] }> = [];
+      const touchedListIds = new Set<string>();
 
       await this.db.transaction(async (tx) => {
         for (const candidate of chunk) {
@@ -136,6 +137,7 @@ export class ImportsProcessor {
             options,
             tagNameCache,
             listNameCache,
+            touchedListIds,
           );
           result[resultKeyFor(outcome.status)] += 1;
           outcomeUpdates.push({
@@ -166,6 +168,10 @@ export class ImportsProcessor {
             .where(and(eq(importRows.importJobId, jobId), eq(importRows.rowNumber, update.rowNumber)));
         }
       });
+
+      for (const listId of touchedListIds) {
+        await this.listsDao.refreshCount(listId);
+      }
     }
 
     return result;
@@ -177,6 +183,7 @@ export class ImportsProcessor {
     options: ImportOptions,
     tagNameCache: Map<string, string>,
     listNameCache: Map<string, string>,
+    touchedListIds: Set<string>,
   ): Promise<{ status: RowStatus; contactId: string | null; errorMessages: string[] }> {
     if (!candidate.normalizedPhone) {
       return { status: 'SKIPPED', contactId: null, errorMessages: ['NO_PHONE'] };
@@ -187,7 +194,7 @@ export class ImportsProcessor {
       if (options.updateMode === 'none') {
         return { status: options.skipDuplicates ? 'SKIPPED' : 'DUPLICATE', contactId: existing.id, errorMessages: [] };
       }
-      await this.applyUpdate(tx, existing.id, candidate, options, tagNameCache, listNameCache);
+      await this.applyUpdate(tx, existing.id, candidate, options, tagNameCache, listNameCache, touchedListIds);
       return { status: 'UPDATED', contactId: existing.id, errorMessages: [] };
     }
 
@@ -213,7 +220,7 @@ export class ImportsProcessor {
 
     await this.applyOptIn(tx, row.id, candidate, suppressed);
     await this.applyTags(tx, row.id, candidate.tags, options.tagIds, tagNameCache);
-    await this.applyList(tx, row.id, candidate.list, options.listId, listNameCache);
+    await this.applyList(tx, row.id, candidate.list, options.listId, listNameCache, touchedListIds);
 
     return { status: 'CREATED', contactId: row.id, errorMessages: [] };
   }
@@ -225,6 +232,7 @@ export class ImportsProcessor {
     options: ImportOptions,
     tagNameCache: Map<string, string>,
     listNameCache: Map<string, string>,
+    touchedListIds: Set<string>,
   ): Promise<void> {
     const current = await this.contactsDao.findById(contactId);
     if (!current) {
@@ -277,7 +285,7 @@ export class ImportsProcessor {
     const suppressed = await this.hasActiveSuppressionByPhone(this.db, current.phoneE164);
     await this.applyOptIn(tx, contactId, candidate, suppressed);
     await this.applyTags(tx, contactId, candidate.tags, options.tagIds, tagNameCache);
-    await this.applyList(tx, contactId, candidate.list, options.listId, listNameCache);
+    await this.applyList(tx, contactId, candidate.list, options.listId, listNameCache, touchedListIds);
   }
 
   private async applyOptIn(tx: DrizzleDB, contactId: string, candidate: ImportCandidate, suppressed: boolean): Promise<void> {
@@ -345,6 +353,7 @@ export class ImportsProcessor {
     listName: string | null,
     optionListId: string | undefined,
     listNameCache: Map<string, string>,
+    touchedListIds: Set<string>,
   ): Promise<void> {
     let listId = optionListId ?? null;
     if (!listId && listName) {
@@ -364,7 +373,7 @@ export class ImportsProcessor {
         .insert(contactListMembers)
         .values({ contactListId: listId, contactId, addedByUserId: null })
         .onConflictDoNothing();
-      await this.listsDao.refreshCount(listId);
+      touchedListIds.add(listId);
     }
   }
 

@@ -170,6 +170,7 @@ export class ContactsService {
 
     const suppressed = await this.hasActiveSuppressionByPhone(normalized.e164);
 
+    const touchedListIds = new Set<string>();
     const created = await this.db.transaction(async (tx) => {
       const [row] = await tx
         .insert(contacts)
@@ -207,7 +208,7 @@ export class ContactsService {
             .values(validLists.map((list) => ({ contactListId: list.id, contactId: row.id, addedByUserId: actor.id })))
             .onConflictDoNothing();
           for (const list of validLists) {
-            await this.listsDao.refreshCount(list.id);
+            touchedListIds.add(list.id);
           }
         }
       }
@@ -235,6 +236,10 @@ export class ContactsService {
       });
       return row;
     });
+
+    for (const listId of touchedListIds) {
+      await this.listsDao.refreshCount(listId);
+    }
 
     const [enriched] = await this.contactsDao.enrich([created]);
     return toContactDto(enriched!);
@@ -566,6 +571,7 @@ export class ContactsService {
     }
 
     let affected = 0;
+    let listIdToRefresh: string | null = null;
     await this.db.transaction(async (tx) => {
       switch (input.action) {
         case 'add-tags': {
@@ -597,7 +603,7 @@ export class ContactsService {
                 .values(contactIds.map((contactId) => ({ contactListId: list.id, contactId, addedByUserId: actor.id })))
                 .onConflictDoNothing();
               affected = contactIds.length;
-              await this.listsDao.refreshCount(list.id);
+              listIdToRefresh = list.id;
             }
           }
           break;
@@ -608,7 +614,7 @@ export class ContactsService {
               .delete(contactListMembers)
               .where(and(eq(contactListMembers.contactListId, input.listId), inArray(contactListMembers.contactId, contactIds)));
             affected = contactIds.length;
-            await this.listsDao.refreshCount(input.listId);
+            listIdToRefresh = input.listId;
           }
           break;
         }
@@ -644,6 +650,10 @@ export class ContactsService {
         }
       }
     });
+
+    if (listIdToRefresh) {
+      await this.listsDao.refreshCount(listIdToRefresh);
+    }
 
     await this.auditService.record({
       actorUserId: actor.id,
