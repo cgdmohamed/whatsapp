@@ -1,5 +1,6 @@
 import type {
   NormalizedInboundMessage,
+  NormalizedPricing,
   NormalizedStatusUpdate,
   NormalizedWebhookResult,
 } from '@wa/shared';
@@ -29,6 +30,7 @@ interface RawInboundMessage {
   id?: string;
   timestamp?: string;
   type?: string;
+  pricing?: { billable?: boolean; category?: string; pricing_model?: string };
   text?: { body?: string };
   image?: {
     id?: string;
@@ -58,6 +60,7 @@ interface RawStatusUpdate {
   status?: string;
   timestamp?: string;
   recipient_id?: string;
+  pricing?: { billable?: boolean; category?: string; pricing_model?: string };
   errors?: Array<{ code?: number; title?: string; message?: string }>;
 }
 
@@ -87,12 +90,24 @@ function normalizeStatus(status: string | undefined): NormalizedStatusUpdate['st
   }
 }
 
+function parsePricing(raw: { billable?: boolean; category?: string; pricing_model?: string } | undefined): NormalizedPricing | null {
+  if (!raw) {
+    return null;
+  }
+  return {
+    billable: typeof raw.billable === 'boolean' ? raw.billable : null,
+    category: raw.category ?? null,
+    pricingModel: raw.pricing_model ?? null,
+  };
+}
+
 function parseInboundMessage(message: RawInboundMessage, metadata: MessageValueMetadata | undefined): NormalizedInboundMessage {
   const base = {
     waMessageId: message.id ?? 'unknown',
     waPhoneNumberId: metadata?.phone_number_id ?? 'unknown',
     from: message.from ?? 'unknown',
     timestamp: message.timestamp ?? String(Date.now()),
+    pricing: parsePricing(message.pricing),
   };
 
   switch (message.type) {
@@ -150,6 +165,7 @@ function parseStatusUpdate(status: RawStatusUpdate, metadata: MessageValueMetada
     waPhoneNumberId: metadata?.phone_number_id ?? 'unknown',
     status: normalizeStatus(status.status),
     timestamp: status.timestamp ?? String(Date.now()),
+    pricing: parsePricing(status.pricing),
     error:
       error === undefined
         ? null

@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -47,6 +48,21 @@ import type {
   EmailLogStatus,
   NotificationSeverity,
   NotificationType,
+  PricingBillingModel,
+  PricingCategory,
+  PricingRuleSetStatus,
+  PricingRuleSourceType,
+  CostCalculationStatus,
+  ChargeStatus,
+  FreeReason,
+  EntryWindowSourceType,
+  EntryWindowStatus,
+  BudgetScopeType,
+  BudgetPeriodType,
+  BudgetPolicyStatus,
+  CostReconciliationStatus,
+  ConversationOutcome,
+  CostEventType,
 } from '@wa/shared';
 
 export const users = pgTable('users', {
@@ -486,7 +502,9 @@ export const conversations = pgTable(
     lastInboundMessageAt: timestamp('last_inbound_message_at', { withTimezone: true }),
     lastOutboundMessageAt: timestamp('last_outbound_message_at', { withTimezone: true }),
     unreadCount: integer('unread_count').notNull().default(0),
+    serviceWindowOpenedAt: timestamp('service_window_opened_at', { withTimezone: true }),
     serviceWindowExpiresAt: timestamp('service_window_expires_at', { withTimezone: true }),
+    serviceWindowSourceMessageId: varchar('service_window_source_message_id', { length: 200 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -591,6 +609,74 @@ export const mediaFiles = pgTable(
   ],
 );
 
+// ---------- Pricing ----------
+
+export const pricingRuleSets = pgTable(
+  'pricing_rule_sets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: varchar('name', { length: 160 }).notNull(),
+    provider: varchar('provider', { length: 100 }).notNull().default('Meta'),
+    description: text('description'),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    status: varchar('status', { length: 20 }).$type<PricingRuleSetStatus>().notNull().default('DRAFT'),
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull(),
+    effectiveTo: timestamp('effective_to', { withTimezone: true }),
+    sourceType: varchar('source_type', { length: 30 }).$type<PricingRuleSourceType>().notNull().default('MANUAL'),
+    sourceReference: varchar('source_reference', { length: 255 }),
+    version: integer('version').notNull().default(1),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('pricing_rule_sets_status_idx').on(table.status),
+    index('pricing_rule_sets_effective_from_idx').on(table.effectiveFrom),
+    index('pricing_rule_sets_currency_idx').on(table.currency),
+  ],
+);
+
+export const pricingRules = pgTable(
+  'pricing_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pricingRuleSetId: uuid('pricing_rule_set_id')
+      .notNull()
+      .references(() => pricingRuleSets.id, { onDelete: 'cascade' }),
+    marketCode: varchar('market_code', { length: 20 }).notNull(),
+    countryCode: varchar('country_code', { length: 2 }).notNull(),
+    messageCategory: varchar('message_category', { length: 30 }).$type<PricingCategory>().notNull(),
+    messageType: varchar('message_type', { length: 40 }).notNull().default('*'),
+    billingModel: varchar('billing_model', { length: 20 }).$type<PricingBillingModel>().notNull(),
+    unitPrice: numeric('unit_price', { precision: 14, scale: 4 }).notNull().default('0'),
+    tokenInputPrice: numeric('token_input_price', { precision: 14, scale: 6 }),
+    tokenOutputPrice: numeric('token_output_price', { precision: 14, scale: 6 }),
+    minimumCharge: numeric('minimum_charge', { precision: 14, scale: 4 }),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull(),
+    effectiveTo: timestamp('effective_to', { withTimezone: true }),
+    customerServiceWindowRequired: boolean('customer_service_window_required').notNull().default(false),
+    freeEntryPointEligible: boolean('free_entry_point_eligible').notNull().default(false),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('pricing_rules_set_idx').on(table.pricingRuleSetId),
+    index('pricing_rules_market_idx').on(table.marketCode, table.countryCode),
+    index('pricing_rules_category_idx').on(table.messageCategory),
+    index('pricing_rules_effective_idx').on(table.effectiveFrom, table.effectiveTo),
+  ],
+);
+
 export const campaigns = pgTable(
   'campaigns',
   {
@@ -622,6 +708,14 @@ export const campaigns = pgTable(
     repliedRecipients: integer('replied_recipients').notNull().default(0),
     failedRecipients: integer('failed_recipients').notNull().default(0),
     optedOutRecipients: integer('opted_out_recipients').notNull().default(0),
+    pricingRuleSetId: uuid('pricing_rule_set_id').references(() => pricingRuleSets.id, { onDelete: 'set null' }),
+    estimatedCost: numeric('estimated_cost', { precision: 14, scale: 4 }),
+    finalCost: numeric('final_cost', { precision: 14, scale: 4 }),
+    costCurrency: varchar('cost_currency', { length: 3 }),
+    pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown> | null>(),
+    pricingCalculatedAt: timestamp('pricing_calculated_at', { withTimezone: true }),
+    pricingWarningAcknowledgedAt: timestamp('pricing_warning_acknowledged_at', { withTimezone: true }),
+    pricingWarningAcknowledgedByUserId: uuid('pricing_warning_acknowledged_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -665,6 +759,13 @@ export const campaignRecipients = pgTable(
     failureCode: varchar('failure_code', { length: 50 }),
     failureMessage: text('failure_message'),
     attemptCount: integer('attempt_count').notNull().default(0),
+    recipientMarket: varchar('recipient_market', { length: 20 }),
+    recipientCountry: varchar('recipient_country', { length: 2 }),
+    messageCategory: varchar('message_category', { length: 30 }).$type<PricingCategory>(),
+    estimatedCost: numeric('estimated_cost', { precision: 14, scale: 4 }),
+    finalCost: numeric('final_cost', { precision: 14, scale: 4 }),
+    chargeStatus: varchar('charge_status', { length: 20 }).$type<ChargeStatus>(),
+    freeReason: varchar('free_reason', { length: 40 }).$type<FreeReason>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -769,6 +870,244 @@ export const exportJobs = pgTable(
   ],
 );
 
+// ---------- Message Costs ----------
+
+export const messageCosts = pgTable(
+  'message_costs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+    campaignRecipientId: uuid('campaign_recipient_id').references(() => campaignRecipients.id, { onDelete: 'set null' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    whatsappPhoneNumberId: varchar('whatsapp_phone_number_id', { length: 100 }),
+    pricingRuleId: uuid('pricing_rule_id').references(() => pricingRules.id, { onDelete: 'set null' }),
+    recipientMarket: varchar('recipient_market', { length: 20 }),
+    recipientCountry: varchar('recipient_country', { length: 2 }),
+    messageCategory: varchar('message_category', { length: 30 }).$type<PricingCategory>().notNull(),
+    billingModel: varchar('billing_model', { length: 20 }).$type<PricingBillingModel>().notNull(),
+    currency: varchar('currency', { length: 3 }),
+    unitPrice: numeric('unit_price', { precision: 14, scale: 4 }),
+    inputTokenCount: integer('input_token_count'),
+    outputTokenCount: integer('output_token_count'),
+    estimatedCost: numeric('estimated_cost', { precision: 14, scale: 4 }),
+    confirmedCost: numeric('confirmed_cost', { precision: 14, scale: 4 }),
+    adjustedCost: numeric('adjusted_cost', { precision: 14, scale: 4 }),
+    finalCost: numeric('final_cost', { precision: 14, scale: 4 }),
+    calculationStatus: varchar('calculation_status', { length: 20 }).$type<CostCalculationStatus>().notNull().default('PENDING'),
+    chargeStatus: varchar('charge_status', { length: 20 }).$type<ChargeStatus>().notNull().default('UNKNOWN'),
+    freeReason: varchar('free_reason', { length: 40 }).$type<FreeReason>(),
+    customerServiceWindowOpen: boolean('customer_service_window_open'),
+    freeEntryPointWindowOpen: boolean('free_entry_point_window_open'),
+    costCalculatedAt: timestamp('cost_calculated_at', { withTimezone: true }),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    adjustedAt: timestamp('adjusted_at', { withTimezone: true }),
+    adjustmentReason: text('adjustment_reason'),
+    adjustedByUserId: uuid('adjusted_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex('message_costs_message_id_idx').on(table.messageId),
+    index('message_costs_campaign_idx').on(table.campaignId),
+    index('message_costs_conversation_idx').on(table.conversationId),
+    index('message_costs_contact_idx').on(table.contactId),
+    index('message_costs_calculated_at_idx').on(table.costCalculatedAt),
+    index('message_costs_category_idx').on(table.messageCategory),
+    index('message_costs_charge_status_idx').on(table.chargeStatus),
+    index('message_costs_market_idx').on(table.recipientMarket),
+  ],
+);
+
+export const messageCostEvents = pgTable(
+  'message_cost_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageCostId: uuid('message_cost_id')
+      .notNull()
+      .references(() => messageCosts.id, { onDelete: 'cascade' }),
+    eventType: varchar('event_type', { length: 30 }).$type<CostEventType>().notNull(),
+    previousStatus: varchar('previous_status', { length: 20 }),
+    newStatus: varchar('new_status', { length: 20 }),
+    previousAmount: numeric('previous_amount', { precision: 14, scale: 4 }),
+    newAmount: numeric('new_amount', { precision: 14, scale: 4 }),
+    currency: varchar('currency', { length: 3 }),
+    reason: text('reason'),
+    source: varchar('source', { length: 60 }),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('message_cost_events_cost_idx').on(table.messageCostId),
+    index('message_cost_events_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export const conversationEntryWindows = pgTable(
+  'conversation_entry_windows',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contactId: uuid('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }),
+    whatsappPhoneNumberId: varchar('whatsapp_phone_number_id', { length: 100 }),
+    sourceType: varchar('source_type', { length: 40 }).$type<EntryWindowSourceType>().notNull(),
+    sourceReference: varchar('source_reference', { length: 255 }),
+    sourceMessageId: varchar('source_message_id', { length: 200 }),
+    openedAt: timestamp('opened_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    status: varchar('status', { length: 20 }).$type<EntryWindowStatus>().notNull().default('OPEN'),
+    metadata: jsonb('metadata').$type<Record<string, unknown> | null>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('entry_windows_contact_idx').on(table.contactId),
+    index('entry_windows_conversation_idx').on(table.conversationId),
+    index('entry_windows_status_idx').on(table.status),
+    index('entry_windows_expires_idx').on(table.expiresAt),
+  ],
+);
+
+// ---------- Budgets ----------
+
+export const budgetPolicies = pgTable(
+  'budget_policies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: varchar('name', { length: 160 }).notNull(),
+    scopeType: varchar('scope_type', { length: 30 }).$type<BudgetScopeType>().notNull(),
+    scopeId: uuid('scope_id'),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    periodType: varchar('period_type', { length: 30 }).$type<BudgetPeriodType>().notNull(),
+    amountLimit: numeric('amount_limit', { precision: 14, scale: 4 }).notNull(),
+    warningThresholdPercentage: integer('warning_threshold_percentage').notNull().default(70),
+    criticalThresholdPercentage: integer('critical_threshold_percentage').notNull().default(90),
+    hardStopEnabled: boolean('hard_stop_enabled').notNull().default(true),
+    allowAdminOverride: boolean('allow_admin_override').notNull().default(true),
+    status: varchar('status', { length: 20 }).$type<BudgetPolicyStatus>().notNull().default('ACTIVE'),
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
+    effectiveTo: timestamp('effective_to', { withTimezone: true }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('budget_policies_scope_idx').on(table.scopeType, table.scopeId),
+    index('budget_policies_status_idx').on(table.status),
+  ],
+);
+
+export const budgetUsageSnapshots = pgTable(
+  'budget_usage_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    budgetPolicyId: uuid('budget_policy_id')
+      .notNull()
+      .references(() => budgetPolicies.id, { onDelete: 'cascade' }),
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }),
+    estimatedUsage: numeric('estimated_usage', { precision: 14, scale: 4 }).notNull().default('0'),
+    confirmedUsage: numeric('confirmed_usage', { precision: 14, scale: 4 }).notNull().default('0'),
+    adjustedUsage: numeric('adjusted_usage', { precision: 14, scale: 4 }).notNull().default('0'),
+    remainingAmount: numeric('remaining_amount', { precision: 14, scale: 4 }).notNull().default('0'),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    calculatedAt: timestamp('calculated_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('budget_usage_policy_idx').on(table.budgetPolicyId),
+    index('budget_usage_period_idx').on(table.periodStart, table.periodEnd),
+  ],
+);
+
+export const budgetOverrideEvents = pgTable(
+  'budget_override_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    budgetPolicyId: uuid('budget_policy_id')
+      .notNull()
+      .references(() => budgetPolicies.id, { onDelete: 'cascade' }),
+    relatedCampaignId: uuid('related_campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+    relatedMessageId: uuid('related_message_id').references(() => messages.id, { onDelete: 'set null' }),
+    requestedByUserId: uuid('requested_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    reason: text('reason').notNull(),
+    amountBefore: numeric('amount_before', { precision: 14, scale: 4 }),
+    amountAfter: numeric('amount_after', { precision: 14, scale: 4 }),
+    currency: varchar('currency', { length: 3 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('budget_override_policy_idx').on(table.budgetPolicyId)],
+);
+
+// ---------- Reconciliation ----------
+
+export const costReconciliationJobs = pgTable(
+  'cost_reconciliation_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceType: varchar('source_type', { length: 40 }).notNull().default('CSV'),
+    originalFilename: varchar('original_filename', { length: 255 }),
+    periodStart: timestamp('period_start', { withTimezone: true }),
+    periodEnd: timestamp('period_end', { withTimezone: true }),
+    currency: varchar('currency', { length: 3 }),
+    status: varchar('status', { length: 20 }).$type<CostReconciliationStatus>().notNull().default('UPLOADED'),
+    totalRows: integer('total_rows').notNull().default(0),
+    matchedRows: integer('matched_rows').notNull().default(0),
+    unmatchedRows: integer('unmatched_rows').notNull().default(0),
+    adjustedRows: integer('adjusted_rows').notNull().default(0),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('cost_reconciliation_status_idx').on(table.status),
+    index('cost_reconciliation_created_idx').on(table.createdAt),
+  ],
+);
+
+// ---------- Outcomes ----------
+
+export const conversationOutcomes = pgTable(
+  'conversation_outcomes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    outcome: varchar('outcome', { length: 30 }).$type<ConversationOutcome>().notNull(),
+    revenueAmount: numeric('revenue_amount', { precision: 14, scale: 4 }),
+    revenueCurrency: varchar('revenue_currency', { length: 3 }),
+    notes: text('notes'),
+    recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('conversation_outcomes_conversation_idx').on(table.conversationId),
+    index('conversation_outcomes_campaign_idx').on(table.campaignId),
+  ],
+);
+
 export type ConversationRow = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 export type ConversationAssignmentRow = typeof conversationAssignments.$inferSelect;
@@ -789,6 +1128,26 @@ export type MessageStatusEventRow = typeof messageStatusEvents.$inferSelect;
 export type NewMessageStatusEvent = typeof messageStatusEvents.$inferInsert;
 export type ExportJobRow = typeof exportJobs.$inferSelect;
 export type NewExportJob = typeof exportJobs.$inferInsert;
+export type PricingRuleSetRow = typeof pricingRuleSets.$inferSelect;
+export type NewPricingRuleSet = typeof pricingRuleSets.$inferInsert;
+export type PricingRuleRow = typeof pricingRules.$inferSelect;
+export type NewPricingRule = typeof pricingRules.$inferInsert;
+export type MessageCostRow = typeof messageCosts.$inferSelect;
+export type NewMessageCost = typeof messageCosts.$inferInsert;
+export type MessageCostEventRow = typeof messageCostEvents.$inferSelect;
+export type NewMessageCostEvent = typeof messageCostEvents.$inferInsert;
+export type ConversationEntryWindowRow = typeof conversationEntryWindows.$inferSelect;
+export type NewConversationEntryWindow = typeof conversationEntryWindows.$inferInsert;
+export type BudgetPolicyRow = typeof budgetPolicies.$inferSelect;
+export type NewBudgetPolicy = typeof budgetPolicies.$inferInsert;
+export type BudgetUsageSnapshotRow = typeof budgetUsageSnapshots.$inferSelect;
+export type NewBudgetUsageSnapshot = typeof budgetUsageSnapshots.$inferInsert;
+export type BudgetOverrideEventRow = typeof budgetOverrideEvents.$inferSelect;
+export type NewBudgetOverrideEvent = typeof budgetOverrideEvents.$inferInsert;
+export type CostReconciliationJobRow = typeof costReconciliationJobs.$inferSelect;
+export type NewCostReconciliationJob = typeof costReconciliationJobs.$inferInsert;
+export type ConversationOutcomeRow = typeof conversationOutcomes.$inferSelect;
+export type NewConversationOutcome = typeof conversationOutcomes.$inferInsert;
 
 // ---------- Help Center ----------
 

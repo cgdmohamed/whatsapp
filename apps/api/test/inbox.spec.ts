@@ -141,6 +141,7 @@ describe('InboxInboundService', () => {
       realtime,
       settingsService,
       auditService,
+      { recordInbound: jest.fn().mockResolvedValue(undefined) } as never,
     );
   }
 
@@ -273,6 +274,7 @@ describe('InboxSendService', () => {
       realtime,
       accessService,
       auditService,
+      { record: jest.fn().mockResolvedValue(undefined) } as never,
     );
   }
 

@@ -2,9 +2,11 @@ import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type {
+  AgentCostReport,
   CampaignPerformanceQuery,
   ContactBreakdownDto,
   ContactReportQuery,
+  ConversationCostReport,
   CreateExportInput,
   DashboardQuery,
   DashboardSummaryDto,
@@ -18,6 +20,9 @@ import type {
   PaginatedContactReport,
   PaginatedExports,
   PaginatedInboxPerformance,
+  RoiReport,
+  WhatsappCostsQuery,
+  WhatsappCostsReport,
 } from '@wa/shared';
 import {
   campaignPerformanceQuerySchema,
@@ -27,6 +32,7 @@ import {
   exportQuerySchema,
   failureAnalysisQuerySchema,
   inboxPerformanceQuerySchema,
+  whatsappCostsQuerySchema,
 } from '@wa/shared';
 
 import { CurrentUser, Roles } from '../../common/decorators';
@@ -90,6 +96,30 @@ export class ReportsController {
   @Roles('ADMIN', 'MANAGER')
   contactBreakdown(): Promise<ContactBreakdownDto> {
     return this.reportsService.contactBreakdown();
+  }
+
+  @Get('whatsapp-costs')
+  @Roles('ADMIN', 'MANAGER')
+  whatsappCosts(@Query(new ZodValidationPipe(whatsappCostsQuerySchema)) query: WhatsappCostsQuery): Promise<WhatsappCostsReport> {
+    return this.reportsService.whatsappCosts(query);
+  }
+
+  @Get('conversation-costs')
+  @Roles('ADMIN', 'MANAGER')
+  conversationCosts(@Query(new ZodValidationPipe(whatsappCostsQuerySchema)) query: WhatsappCostsQuery): Promise<ConversationCostReport> {
+    return this.reportsService.conversationCostReport(query);
+  }
+
+  @Get('agent-costs')
+  @Roles('ADMIN', 'MANAGER')
+  agentCosts(@Query(new ZodValidationPipe(whatsappCostsQuerySchema)) query: WhatsappCostsQuery): Promise<AgentCostReport> {
+    return this.reportsService.agentCostReport(query);
+  }
+
+  @Get('roi')
+  @Roles('ADMIN', 'MANAGER')
+  roi(@Query(new ZodValidationPipe(whatsappCostsQuerySchema)) query: WhatsappCostsQuery): Promise<RoiReport> {
+    return this.reportsService.roiReport(query);
   }
 
   @Post('exports')

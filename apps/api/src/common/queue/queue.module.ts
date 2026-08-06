@@ -41,6 +41,9 @@ export const EXPORTS_QUEUE_NAME = 'reports-exports';
 export const EMAIL_QUEUE = Symbol('EMAIL_QUEUE');
 export const EMAIL_QUEUE_NAME = 'transactional-email';
 
+export const BUDGET_ALERTS_QUEUE = Symbol('BUDGET_ALERTS_QUEUE');
+export const BUDGET_ALERTS_QUEUE_NAME = 'budget-alerts';
+
 export const QUEUES = [
   WEBHOOK_QUEUE,
   IMPORTS_QUEUE,
@@ -55,6 +58,7 @@ export const QUEUES = [
   INBOX_MEDIA_QUEUE,
   EXPORTS_QUEUE,
   EMAIL_QUEUE,
+  BUDGET_ALERTS_QUEUE,
 ] as const;
 export type QueueToken = (typeof QUEUES)[number];
 
@@ -74,6 +78,7 @@ export class QueueManager implements OnModuleDestroy {
     @Inject(INBOX_MEDIA_QUEUE) private readonly inboxMediaQueue: Queue,
     @Inject(EXPORTS_QUEUE) private readonly exportsQueue: Queue,
     @Inject(EMAIL_QUEUE) private readonly emailQueue: Queue,
+    @Inject(BUDGET_ALERTS_QUEUE) private readonly budgetAlertsQueue: Queue,
   ) {}
 
   getQueueByName(name: string): Queue | undefined {
@@ -104,6 +109,8 @@ export class QueueManager implements OnModuleDestroy {
         return this.exportsQueue;
       case EMAIL_QUEUE_NAME:
         return this.emailQueue;
+      case BUDGET_ALERTS_QUEUE_NAME:
+        return this.budgetAlertsQueue;
       default:
         return undefined;
     }
@@ -124,6 +131,7 @@ export class QueueManager implements OnModuleDestroy {
       this.inboxMediaQueue.close(),
       this.exportsQueue.close(),
       this.emailQueue.close(),
+      this.budgetAlertsQueue.close(),
     ]);
   }
 }
@@ -235,6 +243,14 @@ export class QueueManager implements OnModuleDestroy {
         return new Queue(EMAIL_QUEUE_NAME, { connection });
       },
     },
+    {
+      provide: BUDGET_ALERTS_QUEUE,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): Queue => {
+        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        return new Queue(BUDGET_ALERTS_QUEUE_NAME, { connection });
+      },
+    },
     QueueManager,
   ],
   exports: [
@@ -251,6 +267,7 @@ export class QueueManager implements OnModuleDestroy {
     INBOX_MEDIA_QUEUE,
     EXPORTS_QUEUE,
     EMAIL_QUEUE,
+    BUDGET_ALERTS_QUEUE,
     QueueManager,
   ],
 })

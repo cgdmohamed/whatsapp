@@ -17,11 +17,15 @@ import {
 } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type {
+  AgentCostReport,
   CampaignPerformanceQuery,
   CampaignPerformanceRow,
   ContactBreakdownDto,
   ContactReportQuery,
   ContactReportRow,
+  ConversationCostReport,
+  ConversationCostReportRow,
+  ConversationOutcome,
   DashboardQuery,
   DashboardSummaryDto,
   DashboardTrendsDto,
@@ -30,20 +34,28 @@ import type {
   InboxPerformanceQuery,
   InboxPerformanceRow,
   OptInStatus,
+  RoiReport,
   TrendGranularity,
   TrendPoint,
+  WhatsappCostsQuery,
+  WhatsappCostsReport,
 } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
+import { toMoney } from '../../common/money';
 import {
+  budgetPolicies,
   campaignRecipients,
   campaigns,
   contactListMembers,
   contactTags,
   contacts,
   conversationAssignments,
+  conversationEntryWindows,
   conversations,
+  conversationOutcomes,
   internalNotes,
+  messageCosts,
   messages,
   optInRecords,
   suppressionEntries,
@@ -201,6 +213,7 @@ export class ReportsDao {
       recipientsReplied,
       recipientsFailed,
       optedOut,
+      costSummary,
     ] = await Promise.all([
       this.db.select({ value: count() }).from(contacts).where(isNull(contacts.archivedAt)),
       this.db
@@ -246,6 +259,7 @@ export class ReportsDao {
         .from(campaignRecipients)
         .where(and(...rangeConditions(campaignRecipients.failedAt, range))),
       this.db.select({ value: count() }).from(suppressionEntries).where(and(...rangeConditions(suppressionEntries.createdAt, range))),
+      this.costSummary(fullRange),
     ]);
 
     const sent = recipientsSent[0]?.value ?? 0;
@@ -253,6 +267,17 @@ export class ReportsDao {
     const read = recipientsRead[0]?.value ?? 0;
     const replied = recipientsReplied[0]?.value ?? 0;
     const failed = recipientsFailed[0]?.value ?? 0;
+
+    const cost = costSummary;
+    const remainingDaily = cost.remainingDailyBudget;
+    const remainingMonthly = cost.remainingMonthlyBudget;
+    const costPerReply = replied > 0 && cost.finalCost !== null ? cost.finalCost / replied : null;
+    const costPerSale =
+      cost.saleCount > 0 && cost.finalCost !== null
+        ? cost.finalCost / cost.saleCount
+        : cost.saleCount > 0
+          ? null
+          : null;
 
     return {
       from: fullRange.from.toISOString(),
@@ -270,6 +295,21 @@ export class ReportsDao {
         recipientsDelivered: delivered,
         failedSends: failed,
         optedOut: optedOut[0]?.value ?? 0,
+        outboundMessages: cost.outboundMessages,
+        chargeableServiceMessages: cost.chargeableServiceMessages,
+        freeMessages: cost.freeMessages,
+        pricingUnavailableMessages: cost.pricingUnavailableMessages,
+        freeEntryPointConversations: cost.freeEntryPointConversations,
+        costToday: cost.costToday,
+        costThisMonth: cost.costThisMonth,
+        estimatedPendingCost: cost.estimatedPendingCost,
+        confirmedCost: cost.confirmedCost,
+        finalCost: cost.finalCost ?? 0,
+        remainingDailyBudget: remainingDaily,
+        remainingMonthlyBudget: remainingMonthly,
+        campaignsBlockedByBudget: cost.campaignsBlockedByBudget,
+        costPerReply,
+        costPerSale,
       },
       rates: {
         deliveryRate: rate(delivered, sent),
@@ -278,6 +318,164 @@ export class ReportsDao {
         failureRate: rate(failed, sent),
       },
     };
+  }
+
+  private async costSummary(range: Required<DateRange>): Promise<{
+    outboundMessages: number;
+    chargeableServiceMessages: number;
+    freeMessages: number;
+    pricingUnavailableMessages: number;
+    freeEntryPointConversations: number;
+    costToday: number;
+    costThisMonth: number;
+    estimatedPendingCost: number;
+    confirmedCost: number;
+    finalCost: number | null;
+    remainingDailyBudget: number | null;
+    remainingMonthlyBudget: number | null;
+    campaignsBlockedByBudget: number;
+    saleCount: number;
+  }> {
+    const chargeable = ['PAID', 'UNKNOWN'] as const;
+    const FREE_ENTRY_SOURCES = ['CLICK_TO_WHATSAPP_AD', 'FACEBOOK_PAGE_CTA', 'INSTAGRAM_CTA', 'QR_CODE'] as const;
+
+    const [outboundRows, chargeableRows, freeRows, unavailableRows, entryWindowRows, sums, saleCountRows, policies] =
+      await Promise.all([
+        this.db
+          .select({ value: count() })
+          .from(messages)
+          .where(and(eq(messages.direction, 'OUTBOUND'), ...rangeConditions(messages.createdAt, range))),
+        this.db
+          .select({ value: count() })
+          .from(messageCosts)
+          .where(and(inArray(messageCosts.chargeStatus, [...chargeable]), ...rangeConditions(messageCosts.createdAt, range))),
+        this.db
+          .select({ value: count() })
+          .from(messageCosts)
+          .where(and(eq(messageCosts.chargeStatus, 'FREE'), ...rangeConditions(messageCosts.createdAt, range))),
+        this.db
+          .select({ value: count() })
+          .from(messageCosts)
+          .where(
+            and(
+              eq(messageCosts.calculationStatus, 'UNAVAILABLE'),
+              ...rangeConditions(messageCosts.createdAt, range),
+            ),
+          ),
+        this.db
+          .select({ value: count() })
+          .from(conversationEntryWindows)
+          .where(
+            and(
+              inArray(conversationEntryWindows.sourceType, [...FREE_ENTRY_SOURCES]),
+              eq(conversationEntryWindows.status, 'OPEN'),
+              ...rangeConditions(conversationEntryWindows.openedAt, range),
+            ),
+          ),
+        this.db
+          .select({
+            currency: messageCosts.currency,
+            sumEstimated: sql<string>`coalesce(sum(${messageCosts.estimatedCost}), 0)`,
+            sumConfirmed: sql<string>`coalesce(sum(${messageCosts.confirmedCost}), 0)`,
+            sumFinal: sql<string>`coalesce(sum(${messageCosts.finalCost}), 0)`,
+          })
+          .from(messageCosts)
+          .where(and(inArray(messageCosts.chargeStatus, [...chargeable]), ...rangeConditions(messageCosts.createdAt, range)))
+          .groupBy(messageCosts.currency),
+        this.db
+          .select({ value: count() })
+          .from(conversationOutcomes)
+          .where(eq(conversationOutcomes.outcome, 'SALE')),
+        this.db.select().from(budgetPolicies).where(eq(budgetPolicies.status, 'ACTIVE')),
+      ]);
+
+    const sumAmount = (rows: Array<{ currency: string | null; sum: string }>): number | null => {
+      const values = rows
+        .map((row) => toMoney(row.sum))
+        .filter((value): value is number => value !== null && value > 0);
+      if (values.length === 0) {
+        return 0;
+      }
+      return values.reduce((acc, value) => acc + value, 0);
+    };
+
+    const confirmed = sumAmount(
+      sums.map((row) => ({ currency: row.currency, sum: row.sumConfirmed })),
+    );
+    const final = sumAmount(
+      sums.map((row) => ({ currency: row.currency, sum: row.sumFinal })),
+    );
+
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+
+    const [costToday, costThisMonth, estimatedPending] = await Promise.all([
+      this.sumCostsSince(todayStart),
+      this.sumCostsSince(monthStart),
+      this.estimatedPendingCost(range),
+    ]);
+
+    const remaining = (policies: Array<{ amountLimit: string }>, spent: number): number | null => {
+      if (policies.length === 0) {
+        return null;
+      }
+      const candidates = policies.map((policy) => {
+        const limit = toMoney(policy.amountLimit) ?? 0;
+        return Math.max(0, limit - spent);
+      });
+      return Math.min(...candidates);
+    };
+
+    return {
+      outboundMessages: outboundRows[0]?.value ?? 0,
+      chargeableServiceMessages: chargeableRows[0]?.value ?? 0,
+      freeMessages: freeRows[0]?.value ?? 0,
+      pricingUnavailableMessages: unavailableRows[0]?.value ?? 0,
+      freeEntryPointConversations: entryWindowRows[0]?.value ?? 0,
+      costToday,
+      costThisMonth,
+      estimatedPendingCost: estimatedPending,
+      confirmedCost: confirmed ?? 0,
+      finalCost: final,
+      remainingDailyBudget: remaining(policies, costToday),
+      remainingMonthlyBudget: remaining(policies, costThisMonth),
+      campaignsBlockedByBudget: 0,
+      saleCount: saleCountRows[0]?.value ?? 0,
+    };
+  }
+
+  private async sumCostsSince(from: Date): Promise<number> {
+    const rows = await this.db
+      .select({
+        currency: messageCosts.currency,
+        sum: sql<string>`coalesce(sum(coalesce(${messageCosts.finalCost}, ${messageCosts.confirmedCost})), 0)`,
+      })
+      .from(messageCosts)
+      .where(
+        and(
+          inArray(messageCosts.chargeStatus, ['PAID']),
+          gte(messageCosts.createdAt, from),
+        ),
+      )
+      .groupBy(messageCosts.currency);
+    return rows.reduce((acc, row) => acc + (toMoney(row.sum) ?? 0), 0);
+  }
+
+  private async estimatedPendingCost(range: Required<DateRange>): Promise<number> {
+    const rows = await this.db
+      .select({ value: sql<string>`coalesce(sum(${messageCosts.estimatedCost}), 0)` })
+      .from(messageCosts)
+      .where(
+        and(
+          eq(messageCosts.calculationStatus, 'ESTIMATED'),
+          inArray(messageCosts.chargeStatus, ['UNKNOWN', 'PAID']),
+          ...rangeConditions(messageCosts.createdAt, range),
+        ),
+      );
+    return toMoney(rows[0]?.value) ?? 0;
   }
 
   async dashboardTrends(query: DashboardQuery): Promise<DashboardTrendsDto> {
@@ -1184,6 +1382,644 @@ export class ReportsDao {
       optedIn,
       optedOut,
       unknownConsent: Math.max(0, (totalContacts[0]?.value ?? 0) - optedIn - optedOut),
+    };
+  }
+
+  private costSum(column: AnyPgColumn): SQL<string> {
+    return sql<string>`coalesce(sum(coalesce(${column}, 0)), 0)`;
+  }
+
+  private finalCostSum(column: AnyPgColumn, fallback: AnyPgColumn): SQL<string> {
+    return sql<string>`coalesce(sum(coalesce(${column}, ${fallback}, 0)), 0)`;
+  }
+
+  async whatsappCosts(query: WhatsappCostsQuery): Promise<WhatsappCostsReport> {
+    const range = resolveRange(query.from, query.to);
+    const fullRange = defaultRange(range);
+    const baseConditions = (column: AnyPgColumn): SQL[] => rangeConditions(column, range);
+
+    const [costRows, inboundRows, conversationCurrencyRows, marketRows, categoryRows, campaignRows, creatorRows] =
+      await Promise.all([
+        this.db
+          .select({
+            currency: messageCosts.currency,
+            estimated: this.costSum(messageCosts.estimatedCost),
+            confirmed: this.costSum(messageCosts.confirmedCost),
+            adjusted: this.costSum(messageCosts.adjustedCost),
+            final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+            freeMessages: sql<number>`count(*) filter (where ${messageCosts.chargeStatus} = 'FREE')`,
+            chargeableMessages: sql<number>`count(*) filter (where ${messageCosts.chargeStatus} in ('PAID', 'UNKNOWN'))`,
+            unknownPricingMessages: sql<number>`count(*) filter (where ${messageCosts.calculationStatus} = 'UNAVAILABLE')`,
+            outboundMessages: count(),
+            deliveredMessages: sql<number>`count(*) filter (where ${messages.deliveredAt} is not null)`,
+            readMessages: sql<number>`count(*) filter (where ${messages.readAt} is not null)`,
+          })
+          .from(messageCosts)
+          .innerJoin(messages, eq(messageCosts.messageId, messages.id))
+          .where(
+            and(
+              ...baseConditions(messageCosts.createdAt),
+              isNotNullSql(messageCosts.currency),
+            ),
+          )
+          .groupBy(messageCosts.currency),
+        this.db
+          .select({ conversationId: messages.conversationId, count: count() })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.direction, 'INBOUND'),
+              isNotNullSql(messages.conversationId),
+              ...baseConditions(messages.createdAt),
+            ),
+          )
+          .groupBy(messages.conversationId),
+        this.db
+          .select({
+            conversationId: messageCosts.conversationId,
+            currency: messageCosts.currency,
+            count: count(),
+          })
+          .from(messageCosts)
+          .where(and(isNotNullSql(messageCosts.conversationId), isNotNullSql(messageCosts.currency)))
+          .groupBy(messageCosts.conversationId, messageCosts.currency),
+        this.db
+          .select({
+            market: messageCosts.recipientMarket,
+            currency: messageCosts.currency,
+            estimated: this.costSum(messageCosts.estimatedCost),
+            final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          })
+          .from(messageCosts)
+          .where(
+            and(
+              ...baseConditions(messageCosts.createdAt),
+              isNotNullSql(messageCosts.recipientMarket),
+              isNotNullSql(messageCosts.currency),
+            ),
+          )
+          .groupBy(messageCosts.recipientMarket, messageCosts.currency),
+        this.db
+          .select({
+            category: messageCosts.messageCategory,
+            currency: messageCosts.currency,
+            estimated: this.costSum(messageCosts.estimatedCost),
+            final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          })
+          .from(messageCosts)
+          .where(
+            and(
+              ...baseConditions(messageCosts.createdAt),
+              isNotNullSql(messageCosts.currency),
+            ),
+          )
+          .groupBy(messageCosts.messageCategory, messageCosts.currency),
+        this.db
+          .select({
+            campaignId: messageCosts.campaignId,
+            campaignName: campaigns.name,
+            currency: messageCosts.currency,
+            estimated: this.costSum(messageCosts.estimatedCost),
+            final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          })
+          .from(messageCosts)
+          .innerJoin(campaigns, eq(messageCosts.campaignId, campaigns.id))
+          .where(
+            and(
+              ...baseConditions(messageCosts.createdAt),
+              isNotNullSql(messageCosts.campaignId),
+              isNotNullSql(messageCosts.currency),
+            ),
+          )
+          .groupBy(messageCosts.campaignId, campaigns.name, messageCosts.currency),
+        this.db
+          .select({
+            userId: messages.sentByUserId,
+            name: users.name,
+            currency: messageCosts.currency,
+            final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          })
+          .from(messageCosts)
+          .innerJoin(messages, eq(messageCosts.messageId, messages.id))
+          .innerJoin(users, eq(messages.sentByUserId, users.id))
+          .where(
+            and(
+              ...baseConditions(messageCosts.createdAt),
+              isNotNullSql(messages.sentByUserId),
+              isNotNullSql(messageCosts.currency),
+            ),
+          )
+          .groupBy(messages.sentByUserId, users.name, messageCosts.currency),
+      ]);
+
+    const inboundByConversation = new Map<string, number>();
+    for (const row of inboundRows) {
+      if (row.conversationId) {
+        inboundByConversation.set(row.conversationId, row.count);
+      }
+    }
+    const conversationCurrencies = new Map<string, Array<{ currency: string; count: number }>>();
+    for (const row of conversationCurrencyRows) {
+      if (!row.conversationId || !row.currency) {
+        continue;
+      }
+      const list = conversationCurrencies.get(row.conversationId) ?? [];
+      list.push({ currency: row.currency, count: row.count });
+      conversationCurrencies.set(row.conversationId, list);
+    }
+    const repliesByCurrency = new Map<string, number>();
+    for (const [conversationId, counts] of conversationCurrencies) {
+      counts.sort((a, b) => b.count - a.count);
+      const currency = counts[0]?.currency;
+      if (!currency) {
+        continue;
+      }
+      const inbound = inboundByConversation.get(conversationId) ?? 0;
+      repliesByCurrency.set(currency, (repliesByCurrency.get(currency) ?? 0) + inbound);
+    }
+
+    const currencyTotals = costRows.map((row) => {
+      const currency = row.currency ?? 'UNKNOWN';
+      return {
+        currency,
+        estimatedCost: toMoney(row.estimated) ?? 0,
+        confirmedCost: toMoney(row.confirmed) ?? 0,
+        adjustedCost: toMoney(row.adjusted) ?? 0,
+        finalCost: toMoney(row.final) ?? 0,
+        freeMessages: Number(row.freeMessages),
+        chargeableMessages: Number(row.chargeableMessages),
+        unknownPricingMessages: Number(row.unknownPricingMessages),
+        outboundMessages: Number(row.outboundMessages),
+        deliveredMessages: Number(row.deliveredMessages),
+        readMessages: Number(row.readMessages),
+        replies: repliesByCurrency.get(currency) ?? 0,
+      };
+    });
+
+    const totalFinal = currencyTotals.reduce((acc, row) => acc + row.finalCost, 0);
+    const totalDelivered = currencyTotals.reduce((acc, row) => acc + row.deliveredMessages, 0);
+    const totalRead = currencyTotals.reduce((acc, row) => acc + row.readMessages, 0);
+    const totalReplies = currencyTotals.reduce((acc, row) => acc + row.replies, 0);
+
+    return {
+      from: fullRange.from.toISOString(),
+      to: fullRange.to.toISOString(),
+      generatedAt: new Date().toISOString(),
+      currencyTotals,
+      costPerDeliveredMessage: totalDelivered > 0 ? totalFinal / totalDelivered : null,
+      costPerReadMessage: totalRead > 0 ? totalFinal / totalRead : null,
+      costPerReply: totalReplies > 0 ? totalFinal / totalReplies : null,
+      costPerMarket: marketRows
+        .filter((row) => row.market && row.currency)
+        .map((row) => ({
+          market: row.market as string,
+          currency: row.currency as string,
+          estimatedCost: toMoney(row.estimated) ?? 0,
+          finalCost: toMoney(row.final) ?? 0,
+        })),
+      costPerCategory: categoryRows
+        .filter((row) => row.currency)
+        .map((row) => ({
+          category: row.category,
+          currency: row.currency as string,
+          estimatedCost: toMoney(row.estimated) ?? 0,
+          finalCost: toMoney(row.final) ?? 0,
+        })),
+      costPerCampaign: campaignRows
+        .filter((row) => row.campaignId && row.currency)
+        .map((row) => ({
+          campaignId: row.campaignId as string,
+          campaignName: row.campaignName ?? '',
+          currency: row.currency as string,
+          estimatedCost: toMoney(row.estimated) ?? 0,
+          finalCost: toMoney(row.final) ?? 0,
+        })),
+      costPerCreator: creatorRows
+        .filter((row) => row.userId && row.currency)
+        .map((row) => ({
+          userId: row.userId as string,
+          name: row.name ?? '',
+          currency: row.currency as string,
+          finalCost: toMoney(row.final) ?? 0,
+        })),
+    };
+  }
+
+  async conversationCostReport(query: WhatsappCostsQuery): Promise<ConversationCostReport> {
+    const range = resolveRange(query.from, query.to);
+    const fullRange = defaultRange(range);
+
+    const [rows, outboundRows, outcomeRows] = await Promise.all([
+      this.db
+        .select({
+          conversationId: messageCosts.conversationId,
+          currency: messageCosts.currency,
+          estimated: this.costSum(messageCosts.estimatedCost),
+          final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          chargeableMessages: sql<number>`count(*) filter (where ${messageCosts.chargeStatus} in ('PAID', 'UNKNOWN'))`,
+          freeMessages: sql<number>`count(*) filter (where ${messageCosts.chargeStatus} = 'FREE')`,
+          unknownPricingMessages: sql<number>`count(*) filter (where ${messageCosts.calculationStatus} = 'UNAVAILABLE')`,
+          contactName: contacts.displayName,
+          phoneE164: contacts.phoneE164,
+          resolved: sql<boolean>`${conversations.status} = 'CLOSED'`,
+        })
+        .from(messageCosts)
+        .innerJoin(conversations, eq(messageCosts.conversationId, conversations.id))
+        .innerJoin(contacts, eq(conversations.contactId, contacts.id))
+        .where(
+          and(
+            isNotNullSql(messageCosts.conversationId),
+            isNotNullSql(messageCosts.currency),
+            ...rangeConditions(messageCosts.createdAt, range),
+          ),
+        )
+        .groupBy(
+          messageCosts.conversationId,
+          messageCosts.currency,
+          contacts.displayName,
+          contacts.phoneE164,
+          conversations.status,
+        ),
+      this.db
+        .select({ conversationId: messages.conversationId, count: count() })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.direction, 'OUTBOUND'),
+            isNotNullSql(messages.conversationId),
+            ...rangeConditions(messages.createdAt, range),
+          ),
+        )
+        .groupBy(messages.conversationId),
+      this.db
+        .selectDistinctOn([conversationOutcomes.conversationId], {
+          conversationId: conversationOutcomes.conversationId,
+          outcome: conversationOutcomes.outcome,
+        })
+        .from(conversationOutcomes)
+        .where(and(...rangeConditions(conversationOutcomes.occurredAt, range)))
+        .orderBy(conversationOutcomes.conversationId, desc(conversationOutcomes.occurredAt)),
+    ]);
+
+    const outboundByConversation = new Map<string, number>();
+    for (const row of outboundRows) {
+      if (row.conversationId) {
+        outboundByConversation.set(row.conversationId, row.count);
+      }
+    }
+    const outcomeByConversation = new Map<string, ConversationOutcome>();
+    for (const row of outcomeRows) {
+      outcomeByConversation.set(row.conversationId, row.outcome);
+    }
+
+    interface ConversationCostGroup {
+      conversationId: string;
+      contactName: string | null;
+      phoneE164: string;
+      resolved: boolean;
+      outcome: ConversationOutcome | null;
+      outboundMessages: number;
+      chargeableMessages: number;
+      freeMessages: number;
+      unknownPricingMessages: number;
+      currencies: Map<string, { estimated: number; final: number }>;
+    }
+    const groups = new Map<string, ConversationCostGroup>();
+    for (const row of rows) {
+      if (!row.conversationId || !row.currency) {
+        continue;
+      }
+      let group = groups.get(row.conversationId);
+      if (!group) {
+        group = {
+          conversationId: row.conversationId,
+          contactName: row.contactName,
+          phoneE164: row.phoneE164,
+          resolved: row.resolved,
+          outcome: outcomeByConversation.get(row.conversationId) ?? null,
+          outboundMessages: outboundByConversation.get(row.conversationId) ?? 0,
+          chargeableMessages: 0,
+          freeMessages: 0,
+          unknownPricingMessages: 0,
+          currencies: new Map(),
+        };
+        groups.set(row.conversationId, group);
+      }
+      group.chargeableMessages += Number(row.chargeableMessages);
+      group.freeMessages += Number(row.freeMessages);
+      group.unknownPricingMessages += Number(row.unknownPricingMessages);
+      const current = group.currencies.get(row.currency) ?? { estimated: 0, final: 0 };
+      current.estimated += toMoney(row.estimated) ?? 0;
+      current.final += toMoney(row.final) ?? 0;
+      group.currencies.set(row.currency, current);
+    }
+
+    const currencyTotals = new Map<string, { estimatedCost: number; finalCost: number }>();
+    for (const group of groups.values()) {
+      for (const [currency, amounts] of group.currencies) {
+        const total = currencyTotals.get(currency) ?? { estimatedCost: 0, finalCost: 0 };
+        total.estimatedCost += amounts.estimated;
+        total.finalCost += amounts.final;
+        currencyTotals.set(currency, total);
+      }
+    }
+
+    const rowsList: ConversationCostReportRow[] = [];
+    for (const group of groups.values()) {
+      const primary = [...group.currencies.entries()].sort((a, b) => b[1].final - a[1].final)[0];
+      const currency = primary?.[0] ?? '';
+      let estimatedCost = 0;
+      let finalCost = 0;
+      for (const amounts of group.currencies.values()) {
+        estimatedCost += amounts.estimated;
+        finalCost += amounts.final;
+      }
+      rowsList.push({
+        conversationId: group.conversationId ?? '',
+        contactName: group.contactName,
+        phoneE164: group.phoneE164,
+        outboundMessages: group.outboundMessages,
+        chargeableMessages: group.chargeableMessages,
+        freeMessages: group.freeMessages,
+        unknownPricingMessages: group.unknownPricingMessages,
+        estimatedCost,
+        finalCost,
+        currency,
+        resolved: group.resolved,
+        outcome: group.outcome,
+        avgOutboundPerConversation: 0,
+      });
+    }
+
+    const totalConversations = rowsList.length;
+    const totalOutbound = rowsList.reduce((acc, row) => acc + row.outboundMessages, 0);
+    const totalFinal = rowsList.reduce((acc, row) => acc + row.finalCost, 0);
+    const averageCostPerConversation = totalConversations > 0 ? totalFinal / totalConversations : 0;
+    const averageOutboundPerConversation = totalConversations > 0 ? totalOutbound / totalConversations : 0;
+
+    rowsList.sort((a, b) => b.finalCost - a.finalCost);
+    for (const row of rowsList) {
+      row.avgOutboundPerConversation = averageOutboundPerConversation;
+    }
+
+    return {
+      from: fullRange.from.toISOString(),
+      to: fullRange.to.toISOString(),
+      generatedAt: new Date().toISOString(),
+      currencyTotals: [...currencyTotals.entries()].map(([currency, amounts]) => ({
+        currency,
+        estimatedCost: amounts.estimatedCost,
+        finalCost: amounts.finalCost,
+      })),
+      totalConversations,
+      averageCostPerConversation,
+      averageOutboundPerConversation,
+      rows: rowsList,
+    };
+  }
+
+  async agentCostReport(query: WhatsappCostsQuery): Promise<AgentCostReport> {
+    const range = resolveRange(query.from, query.to);
+    const fullRange = defaultRange(range);
+
+    const [rows, resolvedRows] = await Promise.all([
+      this.db
+        .select({
+          userId: messages.sentByUserId,
+          name: users.name,
+          email: users.email,
+          currency: messageCosts.currency,
+          estimated: this.costSum(messageCosts.estimatedCost),
+          final: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+          outboundMessages: count(),
+        })
+        .from(messageCosts)
+        .innerJoin(messages, eq(messageCosts.messageId, messages.id))
+        .innerJoin(users, eq(messages.sentByUserId, users.id))
+        .where(
+          and(
+            isNotNullSql(messages.sentByUserId),
+            isNotNullSql(messageCosts.currency),
+            ...rangeConditions(messageCosts.createdAt, range),
+          ),
+        )
+        .groupBy(messages.sentByUserId, users.name, users.email, messageCosts.currency),
+      this.db
+        .select({ userId: conversations.assignedUserId, count: count() })
+        .from(conversations)
+        .where(
+          and(
+            isNotNullSql(conversations.assignedUserId),
+            isNotNullSql(conversations.closedAt),
+            ...rangeConditions(conversations.closedAt, range),
+          ),
+        )
+        .groupBy(conversations.assignedUserId),
+    ]);
+
+    const resolvedMap = new Map<string, number>();
+    for (const row of resolvedRows) {
+      if (row.userId) {
+        resolvedMap.set(row.userId, row.count);
+      }
+    }
+
+    interface AgentCostGroup {
+      name: string;
+      email: string;
+      outboundMessages: number;
+      conversationsResolved: number;
+      currencies: Map<string, { estimated: number; final: number }>;
+    }
+    const groups = new Map<string, AgentCostGroup>();
+    for (const row of rows) {
+      if (!row.userId || !row.currency) {
+        continue;
+      }
+      let group = groups.get(row.userId);
+      if (!group) {
+        group = {
+          name: row.name ?? '',
+          email: row.email ?? '',
+          outboundMessages: 0,
+          conversationsResolved: resolvedMap.get(row.userId) ?? 0,
+          currencies: new Map(),
+        };
+        groups.set(row.userId, group);
+      }
+      group.outboundMessages += Number(row.outboundMessages);
+      const current = group.currencies.get(row.currency) ?? { estimated: 0, final: 0 };
+      current.estimated += toMoney(row.estimated) ?? 0;
+      current.final += toMoney(row.final) ?? 0;
+      group.currencies.set(row.currency, current);
+    }
+
+    const currencyTotals = new Map<string, { estimatedCost: number; finalCost: number }>();
+    const rowsList = [...groups.entries()].map(([userId, group]) => {
+      const primary = [...group.currencies.entries()].sort((a, b) => b[1].final - a[1].final)[0];
+      const currency = primary?.[0] ?? '';
+      let estimatedCost = 0;
+      let finalCost = 0;
+      for (const amounts of group.currencies.values()) {
+        estimatedCost += amounts.estimated;
+        finalCost += amounts.final;
+      }
+      const total = currencyTotals.get(currency) ?? { estimatedCost: 0, finalCost: 0 };
+      if (currency) {
+        total.estimatedCost += estimatedCost;
+        total.finalCost += finalCost;
+        currencyTotals.set(currency, total);
+      }
+      return {
+        userId,
+        name: group.name,
+        email: group.email,
+        outboundMessages: group.outboundMessages,
+        estimatedCost,
+        finalCost,
+        currency,
+        conversationsResolved: group.conversationsResolved,
+      };
+    });
+
+    rowsList.sort((a, b) => b.finalCost - a.finalCost);
+
+    return {
+      from: fullRange.from.toISOString(),
+      to: fullRange.to.toISOString(),
+      generatedAt: new Date().toISOString(),
+      currencyTotals: [...currencyTotals.entries()].map(([currency, amounts]) => ({
+        currency,
+        estimatedCost: amounts.estimatedCost,
+        finalCost: amounts.finalCost,
+      })),
+      rows: rowsList,
+    };
+  }
+
+  async roiReport(query: WhatsappCostsQuery): Promise<RoiReport> {
+    const range = resolveRange(query.from, query.to);
+    const fullRange = defaultRange(range);
+
+    const [campaignRows, costRows, revenueRows, qualifiedCount, saleCount, totalCostRows] = await Promise.all([
+      this.db.select({ id: campaigns.id, name: campaigns.name }).from(campaigns).where(isNull(campaigns.archivedAt)),
+      this.db
+        .select({
+          campaignId: messageCosts.campaignId,
+          currency: messageCosts.currency,
+          cost: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+        })
+        .from(messageCosts)
+        .where(
+          and(
+            isNotNullSql(messageCosts.campaignId),
+            isNotNullSql(messageCosts.currency),
+            ...rangeConditions(messageCosts.createdAt, range),
+          ),
+        )
+        .groupBy(messageCosts.campaignId, messageCosts.currency),
+      this.db
+        .select({
+          campaignId: conversationOutcomes.campaignId,
+          currency: conversationOutcomes.revenueCurrency,
+          revenue: this.costSum(conversationOutcomes.revenueAmount),
+        })
+        .from(conversationOutcomes)
+        .where(
+          and(
+            isNotNullSql(conversationOutcomes.campaignId),
+            isNotNullSql(conversationOutcomes.revenueCurrency),
+            ...rangeConditions(conversationOutcomes.occurredAt, range),
+          ),
+        )
+        .groupBy(conversationOutcomes.campaignId, conversationOutcomes.revenueCurrency),
+      this.db
+        .select({ value: count() })
+        .from(conversationOutcomes)
+        .where(and(eq(conversationOutcomes.outcome, 'QUALIFIED'), ...rangeConditions(conversationOutcomes.occurredAt, range))),
+      this.db
+        .select({ value: count() })
+        .from(conversationOutcomes)
+        .where(and(eq(conversationOutcomes.outcome, 'SALE'), ...rangeConditions(conversationOutcomes.occurredAt, range))),
+      this.db
+        .select({
+          currency: messageCosts.currency,
+          cost: this.finalCostSum(messageCosts.finalCost, messageCosts.confirmedCost),
+        })
+        .from(messageCosts)
+        .where(and(...rangeConditions(messageCosts.createdAt, range)))
+        .groupBy(messageCosts.currency),
+    ]);
+
+    const costByCampaign = new Map<string, Map<string, number>>();
+    for (const row of costRows) {
+      if (!row.campaignId || !row.currency) {
+        continue;
+      }
+      const amounts = costByCampaign.get(row.campaignId) ?? new Map<string, number>();
+      amounts.set(row.currency, toMoney(row.cost) ?? 0);
+      costByCampaign.set(row.campaignId, amounts);
+    }
+    const revenueByCampaign = new Map<string, Map<string, number>>();
+    for (const row of revenueRows) {
+      if (!row.campaignId || !row.currency) {
+        continue;
+      }
+      const amounts = revenueByCampaign.get(row.campaignId) ?? new Map<string, number>();
+      amounts.set(row.currency, toMoney(row.revenue) ?? 0);
+      revenueByCampaign.set(row.campaignId, amounts);
+    }
+
+    const campaignNames = new Map(campaignRows.map((row) => [row.id, row.name]));
+    const campaignIds = [...new Set([...costByCampaign.keys(), ...revenueByCampaign.keys()])].sort();
+    const campaignsOut = campaignIds.flatMap((campaignId) => {
+      const costs = costByCampaign.get(campaignId) ?? new Map<string, number>();
+      const revenues = revenueByCampaign.get(campaignId) ?? new Map<string, number>();
+      const currencies = [...new Set([...costs.keys(), ...revenues.keys()])];
+      return currencies.map((currency) => {
+        const cost = costs.get(currency) ?? 0;
+        const revenue = revenues.get(currency) ?? 0;
+        return {
+          campaignId,
+          campaignName: campaignNames.get(campaignId) ?? campaignId,
+          currency,
+          revenue,
+          cost,
+          contributionMargin: Math.max(0, revenue - cost),
+          roi: cost > 0 ? (revenue - cost) / cost : null,
+        };
+      });
+    });
+
+    const totalsMap = new Map<string, { revenue: number; cost: number; contributionMargin: number }>();
+    for (const item of campaignsOut) {
+      const totals = totalsMap.get(item.currency) ?? { revenue: 0, cost: 0, contributionMargin: 0 };
+      totals.revenue += item.revenue;
+      totals.cost += item.cost;
+      totals.contributionMargin += item.contributionMargin;
+      totalsMap.set(item.currency, totals);
+    }
+    const totals = [...totalsMap.entries()].map(([currency, value]) => ({
+      currency,
+      revenue: value.revenue,
+      cost: value.cost,
+      contributionMargin: value.contributionMargin,
+      roi: value.cost > 0 ? (value.revenue - value.cost) / value.cost : null,
+    }));
+
+    const totalCost = totalCostRows.reduce((acc, row) => acc + (toMoney(row.cost) ?? 0), 0);
+    const qualified = qualifiedCount[0]?.value ?? 0;
+    const sales = saleCount[0]?.value ?? 0;
+
+    return {
+      from: fullRange.from.toISOString(),
+      to: fullRange.to.toISOString(),
+      generatedAt: new Date().toISOString(),
+      campaigns: campaignsOut,
+      totals,
+      costPerQualifiedLead: qualified > 0 ? totalCost / qualified : null,
+      costPerSale: sales > 0 ? totalCost / sales : null,
+      currencyAvailable: totals.length === 1,
     };
   }
 }

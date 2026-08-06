@@ -71,6 +71,13 @@
       "when": 1785640000000,
       "tag": "0009_email_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785931387564,
+      "tag": "0010_empty_tempest",
+      "breakpoints": true
     }
   ]
 }

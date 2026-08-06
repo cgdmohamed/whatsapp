@@ -6,6 +6,7 @@ import {
   BarChart3,
   BookOpen,
   Contact,
+  Coins,
   FileText,
   FileUp,
   Gauge,
@@ -111,6 +112,7 @@ function buildNavSections(role: Role, t: (key: string) => string): SidebarSectio
             { to: '/operations', label: t('nav.operations'), icon: Gauge },
             { to: '/settings/help-center', label: t('nav.helpAdmin'), icon: BookOpen },
             { to: '/settings/email', label: t('nav.emailSettings'), icon: Mail },
+            { to: '/settings/whatsapp-pricing', label: t('nav.whatsappPricing'), icon: Coins },
             { to: '/settings', label: t('nav.settings'), icon: Settings, end: true },
           ]
         : [],

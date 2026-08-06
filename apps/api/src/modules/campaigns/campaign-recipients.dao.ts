@@ -3,6 +3,7 @@ import { and, count, desc, asc, eq, ilike, inArray, or, type SQL } from 'drizzle
 import type { CampaignRecipientDto, CampaignRecipientQuery, CampaignRecipientStatus, EligibilityReason } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
+import { toMoney } from '../../common/money';
 import { campaignRecipients, type CampaignRecipientRow, type NewCampaignRecipient } from '../../db/schema';
 
 export interface RecipientListResult {
@@ -34,6 +35,13 @@ export function toRecipientDto(row: CampaignRecipientRow): CampaignRecipientDto 
     failureCode: row.failureCode ?? null,
     failureMessage: row.failureMessage ?? null,
     attemptCount: row.attemptCount,
+    recipientMarket: row.recipientMarket ?? null,
+    recipientCountry: row.recipientCountry ?? null,
+    messageCategory: row.messageCategory ?? null,
+    estimatedCost: toMoney(row.estimatedCost),
+    finalCost: toMoney(row.finalCost),
+    chargeStatus: row.chargeStatus ?? null,
+    freeReason: row.freeReason ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

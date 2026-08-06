@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
-import type { ReplyInput } from '@wa/shared';
+import type { PricingCategory, ReplyInput } from '@wa/shared';
 import { AUDIT_ACTIONS } from '@wa/shared';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
@@ -11,6 +11,7 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { MessageTemplatesDao } from '../whatsapp/templates/message-templates.dao';
 import { ContactsDao } from '../contacts/contacts.dao';
 import { MetaApiError } from '../whatsapp/meta-api/meta-api.errors';
+import { CostResolverService } from '../pricing/cost-resolver.service';
 import type { AuthUser } from '../auth/auth.types';
 import type { ConversationRow, MediaFileRow, MessageRow } from '../../db/schema';
 import { ConversationsDao } from './conversations.dao';
@@ -42,6 +43,7 @@ export class InboxSendService {
     private readonly realtime: InboxRealtimeService,
     private readonly accessService: InboxAccessService,
     private readonly auditService: AuditService,
+    private readonly costResolver: CostResolverService,
   ) {}
 
   async sendReply(actor: AuthUser, conversationId: string, input: ReplyInput): Promise<MessageRow> {
@@ -295,6 +297,7 @@ export class InboxSendService {
       },
       { assignedUserId: conversation?.assignedUserId ?? null },
     );
+    await this.recordCostForOutbound(updated, conversation);
     if (conversation) {
       const contact = message.contactId ? await this.contactsDao.findById(message.contactId) : undefined;
       if (contact) {
@@ -320,6 +323,33 @@ export class InboxSendService {
           { assignedUserId: conversation.assignedUserId },
         );
       }
+    }
+  }
+
+  private async recordCostForOutbound(message: MessageRow, conversation: ConversationRow | undefined): Promise<void> {
+    try {
+      let messageCategory: PricingCategory = 'SERVICE';
+      if (message.type === 'template' && message.templateName) {
+        const template = await this.templatesDao.findByName(message.templateName, message.templateLanguage ?? undefined);
+        if (template) {
+          messageCategory = template.category;
+        }
+      }
+      await this.costResolver.record({
+        messageId: message.id,
+        conversationId: message.conversationId ?? undefined,
+        contactId: message.contactId ?? undefined,
+        whatsappPhoneNumberId: message.whatsappPhoneNumberId ?? conversation?.whatsappPhoneNumberId ?? undefined,
+        direction: 'OUTBOUND',
+        messageCategory,
+        messageType: message.type,
+        serviceWindowOpen: null,
+        freeEntryPointWindowOpen: null,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Cost recording failed for message ${message.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

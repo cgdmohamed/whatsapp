@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ContactsModule } from '../contacts/contacts.module';
 import { UsersModule } from '../users/users.module';
 import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { PricingModule } from '../pricing/pricing.module';
 import { CampaignRecipientsDao } from '../campaigns/campaign-recipients.dao';
 import { InboxController } from './inbox.controller';
 import { InboxService } from './inbox.service';
@@ -22,7 +23,7 @@ import { MediaFilesDao } from './media-files.dao';
 import { InboxWorker, InboxSendWorker, InboxMediaWorker } from './inbox.workers';
 
 @Module({
-  imports: [ContactsModule, UsersModule, WhatsAppModule],
+  imports: [ContactsModule, UsersModule, WhatsAppModule, PricingModule],
   controllers: [InboxController],
   providers: [
     ConversationsDao,

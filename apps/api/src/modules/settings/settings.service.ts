@@ -34,6 +34,22 @@ export class SettingsService {
       agentsCanViewUnassignedConversations: this.readBoolean(map, 'agentsCanViewUnassignedConversations'),
       serviceWindowHours: this.readNumber(map, 'serviceWindowHours'),
       maxInboxMediaSizeMb: this.readNumber(map, 'maxInboxMediaSizeMb'),
+      freeEntryPointWindowHours: this.readNumber(map, 'freeEntryPointWindowHours'),
+      showExactCostToAgents: this.readBoolean(map, 'showExactCostToAgents'),
+      enableConsecutiveMessageWarning: this.readBoolean(map, 'enableConsecutiveMessageWarning'),
+      consecutiveMessageWarningIntervalSeconds: this.readNumber(map, 'consecutiveMessageWarningIntervalSeconds'),
+      consecutiveMessageWarningThreshold: this.readNumber(map, 'consecutiveMessageWarningThreshold'),
+      consecutiveMessageWarningMinLength: this.readNumber(map, 'consecutiveMessageWarningMinLength'),
+      requireReapprovalOnPriceChange: this.readBoolean(map, 'requireReapprovalOnPriceChange'),
+      allowCampaignLaunchWithUnavailablePricing: this.readBoolean(map, 'allowCampaignLaunchWithUnavailablePricing'),
+      defaultCampaignBudgetCurrency: this.read(map, 'defaultCampaignBudgetCurrency'),
+      dailyGlobalBudgetAmount: this.readNumber(map, 'dailyGlobalBudgetAmount'),
+      monthlyGlobalBudgetAmount: this.readNumber(map, 'monthlyGlobalBudgetAmount'),
+      budgetWarningThresholdPercentage: this.readNumber(map, 'budgetWarningThresholdPercentage'),
+      budgetCriticalThresholdPercentage: this.readNumber(map, 'budgetCriticalThresholdPercentage'),
+      budgetHardStopEnabled: this.readBoolean(map, 'budgetHardStopEnabled'),
+      costVarianceAlertPercentage: this.readNumber(map, 'costVarianceAlertPercentage'),
+      reconciliationTolerancePercent: this.readNumber(map, 'reconciliationTolerancePercent'),
     };
   }
 

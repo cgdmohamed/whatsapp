@@ -130,11 +130,19 @@ export interface ConversationContactView {
   optInStatus: string;
 }
 
+export interface EntryWindowView {
+  status: ConversationSummaryDto['entryWindowStatus'];
+  sourceType: ConversationSummaryDto['entryWindowSourceType'];
+  openedAt: string | null;
+  expiresAt: string | null;
+}
+
 export function toConversationSummary(
   conversation: ConversationRow,
   contact: ConversationContactView,
   assigneeName: string | null,
   lastMessagePreview: string | null,
+  entryWindow?: EntryWindowView | null,
 ): ConversationSummaryDto {
   return {
     id: conversation.id,
@@ -149,7 +157,12 @@ export function toConversationSummary(
     lastInboundMessageAt: iso(conversation.lastInboundMessageAt),
     lastOutboundMessageAt: iso(conversation.lastOutboundMessageAt),
     unreadCount: conversation.unreadCount,
+    serviceWindowOpenedAt: iso(conversation.serviceWindowOpenedAt),
     serviceWindowExpiresAt: iso(conversation.serviceWindowExpiresAt),
+    entryWindowStatus: entryWindow?.status ?? null,
+    entryWindowSourceType: entryWindow?.sourceType ?? null,
+    entryWindowOpenedAt: entryWindow?.openedAt ?? null,
+    entryWindowExpiresAt: entryWindow?.expiresAt ?? null,
     closedAt: iso(conversation.closedAt),
     createdAt: conversation.createdAt.toISOString(),
     updatedAt: conversation.updatedAt.toISOString(),

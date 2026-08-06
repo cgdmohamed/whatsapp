@@ -21,6 +21,9 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { HelpModule } from './modules/help/help.module';
 import { MailModule } from './modules/mail/mail.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { BudgetModule } from './modules/budget/budget.module';
+import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
 import { QueueModule } from './common/queue/queue.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { DatabaseModule } from './common/database/database.module';
@@ -90,6 +93,9 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     HelpModule,
     MailModule,
     NotificationsModule,
+    PricingModule,
+    BudgetModule,
+    ReconciliationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },

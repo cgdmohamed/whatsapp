@@ -149,7 +149,11 @@ describe('campaigns', () => {
       templatesDao = { findById: jest.fn() };
       phoneNumbersDao = { findById: jest.fn() };
       whatsappService = { buildClient: jest.fn() };
-      messagesDao = { insert: jest.fn(), aggregateCampaignMetrics: jest.fn(), findByCampaignRecipientId: jest.fn().mockResolvedValue(undefined) };
+      messagesDao = {
+        insert: jest.fn().mockResolvedValue({ id: 'msg-1', campaignRecipientId: 'r1', status: 'SENT', metaMessageId: 'wamid-1' }),
+        aggregateCampaignMetrics: jest.fn(),
+        findByCampaignRecipientId: jest.fn().mockResolvedValue(undefined),
+      };
       dispatchService = { enqueueRecipientSend: jest.fn() };
       processor = new CampaignProcessor(
         campaignsDao as never,
@@ -160,6 +164,7 @@ describe('campaigns', () => {
         messagesDao as never,
         dispatchService as never,
         { notifyTargets: jest.fn().mockResolvedValue(undefined) } as never,
+        { record: jest.fn().mockResolvedValue(undefined) } as never,
       );
     });
 
@@ -339,6 +344,7 @@ describe('campaigns', () => {
         { insert: jest.fn() } as never,
         dispatchService as never,
         { notifyTargets: jest.fn().mockResolvedValue(undefined) } as never,
+        { record: jest.fn().mockResolvedValue(undefined) } as never,
       );
     });
 

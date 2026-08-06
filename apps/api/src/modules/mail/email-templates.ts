@@ -342,6 +342,32 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplateDef> = {
       return { html: renderLayout(lang, app, title, html), text: stripHtml(html) };
     },
   },
+  'budget-alert': {
+    key: 'budget-alert',
+    subjectAr: 'تنبيه الميزانية',
+    subjectEn: 'Budget alert',
+    body: (vars, lang, app) => {
+      const level = String(vars.level ?? 'WARNING');
+      const title = lang === 'ar' ? 'تنبيه استهلاك الميزانية' : 'Budget usage alert';
+      const rows: Array<[string, string]> = [
+        [lang === 'ar' ? 'سياسة الميزانية' : 'Budget policy', String(vars.policyName ?? '')],
+        [lang === 'ar' ? 'النطاق' : 'Scope', String(vars.scopeType ?? '')],
+        [lang === 'ar' ? 'الفترة' : 'Period', String(vars.periodType ?? '')],
+        [lang === 'ar' ? 'الحد الأقصى' : 'Limit', `${String(vars.currency ?? '')} ${String(vars.amountLimit ?? '')}`],
+        [lang === 'ar' ? 'الاستهلاك الحالي' : 'Current usage', `${String(vars.currency ?? '')} ${String(vars.totalUsage ?? '')}`],
+        [lang === 'ar' ? 'نسبة الاستهلاك' : 'Usage percentage', `${String(vars.usagePercentage ?? '')}%`],
+        [lang === 'ar' ? 'الحالة' : 'Status', level],
+      ];
+      const note =
+        level === 'BLOCKED'
+          ? callout('warning', lang, lang === 'ar' ? 'تم تفعيل الإيقاف التلقائي لمنع المزيد من الإنفاق.' : 'The hard stop is now active to prevent further spend.')
+          : level === 'CRITICAL'
+            ? callout('warning', lang, lang === 'ar' ? 'الميزانية على وشك النفاد. راجع الاستهلاك فورًا.' : 'The budget is about to run out. Review usage immediately.')
+            : callout('note', lang, lang === 'ar' ? 'اقتربت الميزانية من حد التحذير. راجع الإنفاق.' : 'The budget is approaching the warning threshold. Review your spend.');
+      const html = [p(lang === 'ar' ? 'تجاوز استهلاك الميزانية أحد الحدود المحددة.' : 'Budget usage has crossed a configured threshold.'), infoTable(rows), note].join('');
+      return { html: renderLayout(lang, app, title, html), text: stripHtml(html) };
+    },
+  },
   'daily-summary': {
     key: 'daily-summary',
     subjectAr: 'الملخص اليومي للإدارة',

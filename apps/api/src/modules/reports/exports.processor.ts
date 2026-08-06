@@ -189,6 +189,47 @@ export class ExportsProcessor implements OnModuleDestroy {
           'ip_address',
           'user_agent',
         ];
+      case 'whatsapp-costs':
+        return [
+          'currency',
+          'estimated_cost',
+          'confirmed_cost',
+          'adjusted_cost',
+          'final_cost',
+          'free_messages',
+          'chargeable_messages',
+          'unknown_pricing_messages',
+          'outbound_messages',
+          'delivered_messages',
+          'read_messages',
+          'replies',
+        ];
+      case 'conversation-costs':
+        return [
+          'conversation_id',
+          'contact_name',
+          'phone_e164',
+          'outbound_messages',
+          'chargeable_messages',
+          'free_messages',
+          'unknown_pricing_messages',
+          'estimated_cost',
+          'final_cost',
+          'currency',
+          'resolved',
+          'outcome',
+        ];
+      case 'agent-costs':
+        return [
+          'user_id',
+          'name',
+          'email',
+          'outbound_messages',
+          'estimated_cost',
+          'final_cost',
+          'currency',
+          'conversations_resolved',
+        ];
     }
   }
 
@@ -212,6 +253,15 @@ export class ExportsProcessor implements OnModuleDestroy {
         return;
       case 'audit-log':
         yield* this.auditRows(filters);
+        return;
+      case 'whatsapp-costs':
+        yield* this.whatsappCostRows(filters);
+        return;
+      case 'conversation-costs':
+        yield* this.conversationCostRows(filters);
+        return;
+      case 'agent-costs':
+        yield* this.agentCostRows(filters);
         return;
     }
   }
@@ -391,6 +441,69 @@ export class ExportsProcessor implements OnModuleDestroy {
         row.userAgent,
       ];
     }
+  }
+
+  private async *whatsappCostRows(filters: Record<string, unknown>): AsyncGenerator<unknown[]> {
+    const report = await this.reportsDao.whatsappCosts(this.reportRange(filters));
+    for (const row of report.currencyTotals) {
+      yield [
+        row.currency,
+        row.estimatedCost,
+        row.confirmedCost,
+        row.adjustedCost,
+        row.finalCost,
+        row.freeMessages,
+        row.chargeableMessages,
+        row.unknownPricingMessages,
+        row.outboundMessages,
+        row.deliveredMessages,
+        row.readMessages,
+        row.replies,
+      ];
+    }
+  }
+
+  private async *conversationCostRows(filters: Record<string, unknown>): AsyncGenerator<unknown[]> {
+    const report = await this.reportsDao.conversationCostReport(this.reportRange(filters));
+    for (const row of report.rows) {
+      yield [
+        row.conversationId,
+        row.contactName,
+        row.phoneE164,
+        row.outboundMessages,
+        row.chargeableMessages,
+        row.freeMessages,
+        row.unknownPricingMessages,
+        row.estimatedCost,
+        row.finalCost,
+        row.currency,
+        row.resolved ? 'yes' : 'no',
+        row.outcome,
+      ];
+    }
+  }
+
+  private async *agentCostRows(filters: Record<string, unknown>): AsyncGenerator<unknown[]> {
+    const report = await this.reportsDao.agentCostReport(this.reportRange(filters));
+    for (const row of report.rows) {
+      yield [
+        row.userId,
+        row.name,
+        row.email,
+        row.outboundMessages,
+        row.estimatedCost,
+        row.finalCost,
+        row.currency,
+        row.conversationsResolved,
+      ];
+    }
+  }
+
+  private reportRange(filters: Record<string, unknown>): { from?: string; to?: string } {
+    return {
+      from: typeof filters.from === 'string' ? filters.from : undefined,
+      to: typeof filters.to === 'string' ? filters.to : undefined,
+    };
   }
 
   private async writeRow(stream: WriteStream, row: unknown[]): Promise<void> {

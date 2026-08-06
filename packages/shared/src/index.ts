@@ -13,6 +13,76 @@ export const DEFAULT_LANGUAGE: Language = 'ar';
 export const DEFAULT_COUNTRY = 'EG';
 export const DEFAULT_TIMEZONE = 'Africa/Cairo';
 
+export const PRICING_BILLING_MODELS = ['PER_MESSAGE', 'PER_TOKEN', 'FREE', 'UNKNOWN'] as const;
+export type PricingBillingModel = (typeof PRICING_BILLING_MODELS)[number];
+
+export const PRICING_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION', 'SERVICE', 'META_BUSINESS_AGENT', 'UNKNOWN'] as const;
+export type PricingCategory = (typeof PRICING_CATEGORIES)[number];
+
+export const PRICING_RULE_SET_STATUSES = ['DRAFT', 'ACTIVE', 'EXPIRED', 'ARCHIVED'] as const;
+export type PricingRuleSetStatus = (typeof PRICING_RULE_SET_STATUSES)[number];
+
+export const PRICING_RULE_SOURCE_TYPES = ['MANUAL', 'OFFICIAL_PUBLISHED', 'IMPORTED', 'RECONCILED'] as const;
+export type PricingRuleSourceType = (typeof PRICING_RULE_SOURCE_TYPES)[number];
+
+export const COST_CALCULATION_STATUSES = ['PENDING', 'ESTIMATED', 'CONFIRMED', 'ADJUSTED', 'UNAVAILABLE', 'NOT_APPLICABLE'] as const;
+export type CostCalculationStatus = (typeof COST_CALCULATION_STATUSES)[number];
+
+export const CHARGE_STATUSES = ['PAID', 'FREE', 'UNKNOWN', 'NOT_CHARGEABLE'] as const;
+export type ChargeStatus = (typeof CHARGE_STATUSES)[number];
+
+export const FREE_REASONS = [
+  'FREE_ENTRY_POINT_WINDOW',
+  'PROVIDER_EXEMPTION',
+  'INBOUND_MESSAGE',
+  'NON_DELIVERED_MESSAGE',
+  'MANUAL_ADJUSTMENT',
+  'OTHER',
+] as const;
+export type FreeReason = (typeof FREE_REASONS)[number];
+
+export const ENTRY_WINDOW_SOURCE_TYPES = [
+  'CLICK_TO_WHATSAPP_AD',
+  'FACEBOOK_PAGE_CTA',
+  'INSTAGRAM_CTA',
+  'QR_CODE',
+  'ORGANIC_CUSTOMER_MESSAGE',
+  'OTHER',
+  'UNKNOWN',
+] as const;
+export type EntryWindowSourceType = (typeof ENTRY_WINDOW_SOURCE_TYPES)[number];
+
+export const ENTRY_WINDOW_STATUSES = ['OPEN', 'EXPIRED', 'REVOKED', 'UNKNOWN'] as const;
+export type EntryWindowStatus = (typeof ENTRY_WINDOW_STATUSES)[number];
+
+export const BUDGET_SCOPE_TYPES = ['GLOBAL', 'WHATSAPP_PHONE_NUMBER', 'CAMPAIGN', 'USER'] as const;
+export type BudgetScopeType = (typeof BUDGET_SCOPE_TYPES)[number];
+
+export const BUDGET_PERIOD_TYPES = ['DAILY', 'WEEKLY', 'MONTHLY', 'CAMPAIGN_LIFETIME', 'CUSTOM'] as const;
+export type BudgetPeriodType = (typeof BUDGET_PERIOD_TYPES)[number];
+
+export const BUDGET_POLICY_STATUSES = ['ACTIVE', 'DISABLED', 'EXPIRED'] as const;
+export type BudgetPolicyStatus = (typeof BUDGET_POLICY_STATUSES)[number];
+
+export const COST_RECONCILIATION_STATUSES = ['UPLOADED', 'VALIDATING', 'READY', 'PROCESSING', 'COMPLETED', 'FAILED'] as const;
+export type CostReconciliationStatus = (typeof COST_RECONCILIATION_STATUSES)[number];
+
+export const CONVERSATION_OUTCOMES = ['NO_OUTCOME', 'INTERESTED', 'QUALIFIED', 'SALE', 'LOST', 'FOLLOW_UP_REQUIRED'] as const;
+export type ConversationOutcome = (typeof CONVERSATION_OUTCOMES)[number];
+
+export const COST_EVENT_TYPES = [
+  'CREATED',
+  'ESTIMATED',
+  'MARKED_FREE',
+  'MARKED_PAID',
+  'CONFIRMED',
+  'ADJUSTED',
+  'RECONCILED',
+  'RULE_CHANGED',
+  'MANUAL_OVERRIDE',
+] as const;
+export type CostEventType = (typeof COST_EVENT_TYPES)[number];
+
 export const ID_SCHEMA = z.string().uuid('Invalid id');
 
 export const passwordSchema = z
@@ -161,6 +231,26 @@ export const settingsSchema = z.object({
   agentsCanViewUnassignedConversations: z.coerce.boolean().default(false),
   serviceWindowHours: z.coerce.number().int().min(1).max(168),
   maxInboxMediaSizeMb: z.coerce.number().int().min(1).max(64),
+  freeEntryPointWindowHours: z.coerce.number().int().min(1).max(720),
+  showExactCostToAgents: z.coerce.boolean().default(false),
+  enableConsecutiveMessageWarning: z.coerce.boolean().default(false),
+  consecutiveMessageWarningIntervalSeconds: z.coerce.number().int().min(5).max(3600),
+  consecutiveMessageWarningThreshold: z.coerce.number().int().min(1).max(20),
+  consecutiveMessageWarningMinLength: z.coerce.number().int().min(1).max(200),
+  requireReapprovalOnPriceChange: z.coerce.boolean().default(true),
+  allowCampaignLaunchWithUnavailablePricing: z.coerce.boolean().default(false),
+  defaultCampaignBudgetCurrency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, 'INVALID_CURRENCY_CODE'),
+  dailyGlobalBudgetAmount: z.coerce.number().min(0),
+  monthlyGlobalBudgetAmount: z.coerce.number().min(0),
+  budgetWarningThresholdPercentage: z.coerce.number().int().min(1).max(100),
+  budgetCriticalThresholdPercentage: z.coerce.number().int().min(1).max(100),
+  budgetHardStopEnabled: z.coerce.boolean().default(true),
+  costVarianceAlertPercentage: z.coerce.number().min(1).max(1000),
+  reconciliationTolerancePercent: z.coerce.number().min(0).max(100),
 });
 export type SettingsDto = z.infer<typeof settingsSchema>;
 
@@ -915,11 +1005,18 @@ export type ImportJobQuery = z.infer<typeof importJobQuerySchema>;
 
 // Normalized inbound event types produced by the webhook parser.
 
+export interface NormalizedPricing {
+  billable: boolean | null;
+  category: string | null;
+  pricingModel: string | null;
+}
+
 export interface NormalizedInboundMessageBase {
   waMessageId: string;
   waPhoneNumberId: string;
   from: string;
   timestamp: string;
+  pricing?: NormalizedPricing | null;
 }
 
 export interface NormalizedTextMessage extends NormalizedInboundMessageBase {
@@ -974,6 +1071,7 @@ export interface NormalizedStatusUpdate {
   waPhoneNumberId: string;
   status: MessageStatus;
   timestamp: string;
+  pricing?: NormalizedPricing | null;
   error: {
     code: number | null;
     title: string | null;
@@ -1119,7 +1217,12 @@ export const conversationSummarySchema = z.object({
   lastInboundMessageAt: z.string().nullable(),
   lastOutboundMessageAt: z.string().nullable(),
   unreadCount: z.number().int().nonnegative(),
+  serviceWindowOpenedAt: z.string().nullable(),
   serviceWindowExpiresAt: z.string().nullable(),
+  entryWindowStatus: z.enum(ENTRY_WINDOW_STATUSES).nullable(),
+  entryWindowSourceType: z.enum(ENTRY_WINDOW_SOURCE_TYPES).nullable(),
+  entryWindowOpenedAt: z.string().nullable(),
+  entryWindowExpiresAt: z.string().nullable(),
   closedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -1483,6 +1586,12 @@ export const campaignSchema = z.object({
   repliedRecipients: z.number().int().nonnegative(),
   failedRecipients: z.number().int().nonnegative(),
   optedOutRecipients: z.number().int().nonnegative(),
+  pricingRuleSetId: z.string().uuid().nullable(),
+  estimatedCost: z.number().min(0).nullable(),
+  finalCost: z.number().min(0).nullable(),
+  costCurrency: z.string().nullable(),
+  pricingCalculatedAt: z.string().nullable(),
+  pricingWarningAcknowledgedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
   archivedAt: z.string().nullable(),
@@ -1512,6 +1621,13 @@ export const campaignRecipientSchema = z.object({
   failureCode: z.string().nullable(),
   failureMessage: z.string().nullable(),
   attemptCount: z.number().int().nonnegative(),
+  recipientMarket: z.string().nullable(),
+  recipientCountry: z.string().nullable(),
+  messageCategory: z.enum(PRICING_CATEGORIES).nullable(),
+  estimatedCost: z.number().min(0).nullable(),
+  finalCost: z.number().min(0).nullable(),
+  chargeStatus: z.enum(CHARGE_STATUSES).nullable(),
+  freeReason: z.enum(FREE_REASONS).nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -1704,9 +1820,597 @@ export const AUDIT_ACTIONS = {
   EMAIL_MANUAL_RETRY: 'mail.manual_retry',
   DAILY_SUMMARY_SETTINGS_CHANGED: 'mail.daily_summary_settings_changed',
   NOTIFICATION_PREFERENCES_CHANGED: 'notifications.preferences_changed',
+  PRICING_RULE_SET_CREATE: 'pricing.rule_set_create',
+  PRICING_RULE_SET_UPDATE: 'pricing.rule_set_update',
+  PRICING_RULE_SET_DUPLICATE: 'pricing.rule_set_duplicate',
+  PRICING_RULE_SET_VALIDATE: 'pricing.rule_set_validate',
+  PRICING_RULE_SET_ACTIVATE: 'pricing.rule_set_activate',
+  PRICING_RULE_SET_ARCHIVE: 'pricing.rule_set_archive',
+  PRICING_IMPORT_PREVIEW: 'pricing.import_preview',
+  PRICING_IMPORT_CREATE: 'pricing.import_create',
+  PRICING_COVERAGE: 'pricing.coverage',
+  COST_ADJUST: 'cost.adjust',
+  COST_MANUAL_OVERRIDE: 'cost.manual_override',
+  BUDGET_CREATE: 'budget.create',
+  BUDGET_UPDATE: 'budget.update',
+  BUDGET_DISABLE: 'budget.disable',
+  BUDGET_OVERRIDE: 'budget.override',
+  BUDGET_HARD_STOP: 'budget.hard_stop',
+  BUDGET_WARNING: 'budget.warning',
+  BUDGET_CRITICAL: 'budget.critical',
+  CAMPAIGN_ESTIMATE_COST: 'campaign.estimate_cost',
+  CAMPAIGN_PRICING_WARNING_ACKNOWLEDGE: 'campaign.pricing_warning_acknowledge',
+  RECONCILIATION_UPLOAD: 'cost.reconciliation_upload',
+  RECONCILIATION_VALIDATE: 'cost.reconciliation_validate',
+  RECONCILIATION_APPLY: 'cost.reconciliation_apply',
+  OUTCOME_RECORD: 'outcome.record',
+  OUTCOME_UPDATE: 'outcome.update',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
+
+// ---------- Pricing & Cost Control ----------
+
+const ISO_4217 = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'INVALID_CURRENCY_CODE');
+const positiveMoney = z.coerce.number().min(0);
+const nullableMoney = z.coerce.number().min(0).nullable().optional();
+
+export const pricingRuleSchema = z.object({
+  id: z.string().uuid(),
+  pricingRuleSetId: z.string().uuid(),
+  marketCode: z.string(),
+  countryCode: z.string(),
+  messageCategory: z.enum(PRICING_CATEGORIES),
+  messageType: z.string(),
+  billingModel: z.enum(PRICING_BILLING_MODELS),
+  unitPrice: positiveMoney,
+  tokenInputPrice: nullableMoney,
+  tokenOutputPrice: nullableMoney,
+  minimumCharge: nullableMoney,
+  currency: ISO_4217,
+  effectiveFrom: z.string(),
+  effectiveTo: z.string().nullable(),
+  customerServiceWindowRequired: z.boolean().default(false),
+  freeEntryPointEligible: z.boolean().default(false),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PricingRuleDto = z.infer<typeof pricingRuleSchema>;
+
+export const pricingRuleSetSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  provider: z.string(),
+  description: z.string().nullable(),
+  currency: ISO_4217,
+  status: z.enum(PRICING_RULE_SET_STATUSES),
+  effectiveFrom: z.string(),
+  effectiveTo: z.string().nullable(),
+  sourceType: z.enum(PRICING_RULE_SOURCE_TYPES),
+  sourceReference: z.string().nullable(),
+  version: z.number().int().positive(),
+  createdByUserId: z.string().uuid().nullable(),
+  approvedByUserId: z.string().uuid().nullable(),
+  rules: z.array(pricingRuleSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+});
+export type PricingRuleSetDto = z.infer<typeof pricingRuleSetSchema>;
+
+export const pricingRuleInputSchema = z.object({
+  marketCode: z.string().trim().min(1).max(20),
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'INVALID_COUNTRY_CODE'),
+  messageCategory: z.enum(PRICING_CATEGORIES),
+  messageType: z.string().trim().max(40).default('*'),
+  billingModel: z.enum(PRICING_BILLING_MODELS),
+  unitPrice: z.coerce.number().min(0),
+  tokenInputPrice: z.coerce.number().min(0).optional(),
+  tokenOutputPrice: z.coerce.number().min(0).optional(),
+  minimumCharge: z.coerce.number().min(0).optional(),
+  effectiveFrom: z.string().trim(),
+  effectiveTo: z.string().trim().nullable().optional(),
+  customerServiceWindowRequired: z.coerce.boolean().default(false),
+  freeEntryPointEligible: z.coerce.boolean().default(false),
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+export type PricingRuleInput = z.infer<typeof pricingRuleInputSchema>;
+
+export const pricingRuleSetCreateSchema = z.object({
+  name: nameSchema,
+  provider: z.string().trim().min(1).max(100).default('Meta'),
+  description: z.string().trim().max(1000).optional(),
+  currency: ISO_4217,
+  effectiveFrom: z.string().trim(),
+  effectiveTo: z.string().trim().nullable().optional(),
+  sourceType: z.enum(PRICING_RULE_SOURCE_TYPES).default('MANUAL'),
+  sourceReference: z.string().trim().max(255).nullable().optional(),
+  duplicateFrom: ID_SCHEMA.optional(),
+  rules: z.array(pricingRuleInputSchema).min(1, 'AT_LEAST_ONE_RULE_REQUIRED'),
+});
+export type PricingRuleSetCreateInput = z.infer<typeof pricingRuleSetCreateSchema>;
+
+export const pricingRuleSetUpdateSchema = z.object({
+  name: nameSchema.optional(),
+  description: z.string().trim().max(1000).nullable().optional(),
+  effectiveTo: z.string().trim().nullable().optional(),
+  sourceReference: z.string().trim().max(255).nullable().optional(),
+});
+export type PricingRuleSetUpdateInput = z.infer<typeof pricingRuleSetUpdateSchema>;
+
+export const pricingRuleQuerySchema = z.object({
+  status: z.enum(PRICING_RULE_SET_STATUSES).optional(),
+  marketCode: z.string().trim().max(20).optional(),
+  category: z.enum(PRICING_CATEGORIES).optional(),
+  includeArchived: z.enum(['yes', 'no']).optional(),
+});
+export type PricingRuleQuery = z.infer<typeof pricingRuleQuerySchema>;
+
+export const pricingRuleListSchema = z.object({
+  items: z.array(pricingRuleSetSchema),
+  total: z.number().int().nonnegative(),
+});
+export type PricingRuleList = z.infer<typeof pricingRuleListSchema>;
+
+export const pricingImportRowSchema = z.object({
+  rowNumber: z.number().int().positive(),
+  market_code: z.string().trim().min(1).max(20),
+  country_code: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'INVALID_COUNTRY_CODE'),
+  message_category: z.enum(PRICING_CATEGORIES),
+  billing_model: z.enum(PRICING_BILLING_MODELS),
+  unit_price: z.coerce.number().min(0),
+  currency: ISO_4217,
+  effective_from: z.string().trim(),
+  effective_to: z.string().trim().nullable().optional(),
+  free_entry_point_eligible: z.coerce.boolean().default(false),
+  token_input_price: z.coerce.number().min(0).optional(),
+  token_output_price: z.coerce.number().min(0).optional(),
+  minimum_charge: z.coerce.number().min(0).optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+export type PricingImportRow = z.infer<typeof pricingImportRowSchema>;
+
+export const pricingImportPreviewSchema = z.object({
+  rows: z.array(pricingImportRowSchema),
+  errors: z.array(z.object({ rowNumber: z.number().int().positive(), error: z.string() })),
+  totalRows: z.number().int().nonnegative(),
+  validRows: z.number().int().nonnegative(),
+  invalidRows: z.number().int().nonnegative(),
+  detectedCurrency: z.string().nullable(),
+  overlappingRuleSets: z.array(z.string().uuid()),
+});
+export type PricingImportPreview = z.infer<typeof pricingImportPreviewSchema>;
+
+export const pricingCoverageSchema = z.object({
+  activeRuleSetId: z.string().uuid().nullable(),
+  activeRuleSetName: z.string().nullable(),
+  activeCurrency: z.string().nullable(),
+  activeEffectiveFrom: z.string().nullable(),
+  activeEffectiveTo: z.string().nullable(),
+  activeVersion: z.number().int().positive().nullable(),
+  totalRules: z.number().int().nonnegative(),
+  marketsCovered: z.array(z.string()),
+  categoriesCovered: z.array(z.enum(PRICING_CATEGORIES)),
+  missingMarkets: z.array(z.string()),
+  conflicts: z.array(z.object({ ruleA: z.string().uuid(), ruleB: z.string().uuid(), message: z.string() })),
+  freeEntryPointRules: z.number().int().nonnegative(),
+  perMessageRules: z.number().int().nonnegative(),
+  perTokenRules: z.number().int().nonnegative(),
+  freeRules: z.number().int().nonnegative(),
+  generatedAt: z.string(),
+});
+export type PricingCoverage = z.infer<typeof pricingCoverageSchema>;
+
+export const messageCostSchema = z.object({
+  id: z.string().uuid(),
+  messageId: z.string().uuid().nullable(),
+  campaignId: z.string().uuid().nullable(),
+  campaignRecipientId: z.string().uuid().nullable(),
+  conversationId: z.string().uuid().nullable(),
+  contactId: z.string().uuid().nullable(),
+  whatsappPhoneNumberId: z.string().nullable(),
+  pricingRuleId: z.string().uuid().nullable(),
+  recipientMarket: z.string().nullable(),
+  recipientCountry: z.string().nullable(),
+  messageCategory: z.enum(PRICING_CATEGORIES),
+  billingModel: z.enum(PRICING_BILLING_MODELS),
+  currency: z.string().nullable(),
+  unitPrice: z.number().min(0).nullable(),
+  inputTokenCount: z.number().int().nonnegative().nullable(),
+  outputTokenCount: z.number().int().nonnegative().nullable(),
+  estimatedCost: z.number().min(0).nullable(),
+  confirmedCost: z.number().min(0).nullable(),
+  adjustedCost: z.number().min(0).nullable(),
+  finalCost: z.number().min(0).nullable(),
+  calculationStatus: z.enum(COST_CALCULATION_STATUSES),
+  chargeStatus: z.enum(CHARGE_STATUSES),
+  freeReason: z.enum(FREE_REASONS).nullable(),
+  customerServiceWindowOpen: z.boolean().nullable(),
+  freeEntryPointWindowOpen: z.boolean().nullable(),
+  costCalculatedAt: z.string().nullable(),
+  confirmedAt: z.string().nullable(),
+  adjustedAt: z.string().nullable(),
+  adjustmentReason: z.string().nullable(),
+  adjustedByUserId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MessageCostDto = z.infer<typeof messageCostSchema>;
+
+export const messageCostEstimateInputSchema = z.object({
+  phoneNumberId: z.string().trim().optional(),
+  contactId: ID_SCHEMA.optional(),
+  recipientCountry: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'INVALID_COUNTRY_CODE').optional(),
+  messageCategory: z.enum(PRICING_CATEGORIES).optional(),
+  messageType: z.string().trim().max(40).optional(),
+  serviceWindowOpen: z.coerce.boolean().optional(),
+  freeEntryPointWindowOpen: z.coerce.boolean().optional(),
+});
+export type MessageCostEstimateInput = z.infer<typeof messageCostEstimateInputSchema>;
+
+export const messageCostEstimateSchema = z.object({
+  category: z.enum(PRICING_CATEGORIES),
+  billingModel: z.enum(PRICING_BILLING_MODELS),
+  chargeStatus: z.enum(CHARGE_STATUSES),
+  freeReason: z.enum(FREE_REASONS).nullable(),
+  calculationStatus: z.enum(COST_CALCULATION_STATUSES),
+  currency: z.string().nullable(),
+  estimatedCost: z.number().min(0).nullable(),
+  unitPrice: z.number().min(0).nullable(),
+  pricingRuleId: z.string().uuid().nullable(),
+  pricingRuleSetVersion: z.number().int().positive().nullable(),
+  customerServiceWindowOpen: z.boolean().nullable(),
+  freeEntryPointWindowOpen: z.boolean().nullable(),
+  pricingAvailable: z.boolean(),
+});
+export type MessageCostEstimate = z.infer<typeof messageCostEstimateSchema>;
+
+export const campaignCostEstimateSchema = z.object({
+  campaignId: z.string().uuid(),
+  generatedAt: z.string(),
+  pricingRuleSetId: z.string().uuid().nullable(),
+  pricingRuleSetName: z.string().nullable(),
+  pricingRuleSetVersion: z.number().int().positive().nullable(),
+  totalSelected: z.number().int().nonnegative(),
+  eligibleRecipients: z.number().int().nonnegative(),
+  recipientsWithPricing: z.number().int().nonnegative(),
+  recipientsWithoutPricing: z.number().int().nonnegative(),
+  estimatedMessageCount: z.number().int().nonnegative(),
+  totalEstimatedCost: z.number().min(0),
+  maxEstimatedCost: z.number().min(0),
+  averageCostPerEligibleRecipient: z.number().min(0),
+  currency: z.string().nullable(),
+  currencyTotals: z.array(z.object({ currency: z.string(), estimatedCost: z.number().min(0), maxCost: z.number().min(0) })),
+  byMarket: z.array(z.object({ market: z.string(), currency: z.string(), estimatedCost: z.number().min(0), recipients: z.number().int().nonnegative() })),
+  byCategory: z.array(z.object({ category: z.enum(PRICING_CATEGORIES), currency: z.string(), estimatedCost: z.number().min(0), recipients: z.number().int().nonnegative() })),
+  freeMessages: z.number().int().nonnegative(),
+  chargeableMessages: z.number().int().nonnegative(),
+  unknownPricingMessages: z.number().int().nonnegative(),
+  warnings: z.array(z.string()),
+});
+export type CampaignCostEstimate = z.infer<typeof campaignCostEstimateSchema>;
+
+export const campaignCostSummarySchema = z.object({
+  campaignId: z.string().uuid(),
+  pricingRuleSetId: z.string().uuid().nullable(),
+  pricingRuleSetName: z.string().nullable(),
+  pricingRuleSetVersion: z.number().int().positive().nullable(),
+  pricingCalculatedAt: z.string().nullable(),
+  estimatedCost: z.number().min(0).nullable(),
+  confirmedCost: z.number().min(0).nullable(),
+  adjustedCost: z.number().min(0).nullable(),
+  finalCost: z.number().min(0).nullable(),
+  costCurrency: z.string().nullable(),
+  variancePercent: z.number().nullable(),
+  currencyTotals: z.array(z.object({ currency: z.string(), estimatedCost: z.number().min(0), confirmedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  freeMessages: z.number().int().nonnegative(),
+  chargeableMessages: z.number().int().nonnegative(),
+  unknownPricingMessages: z.number().int().nonnegative(),
+  budgetStatus: z.enum(['OK', 'WARNING', 'CRITICAL', 'BLOCKED', 'NO_BUDGET', 'UNAVAILABLE']),
+  budgetOverrides: z.array(z.object({ id: z.string().uuid(), amountAfter: z.number().min(0), currency: z.string(), reason: z.string(), createdAt: z.string() })),
+});
+export type CampaignCostSummary = z.infer<typeof campaignCostSummarySchema>;
+
+export const conversationCostSummarySchema = z.object({
+  conversationId: z.string().uuid(),
+  serviceWindowOpen: z.boolean().nullable(),
+  serviceWindowOpenedAt: z.string().nullable(),
+  serviceWindowExpiresAt: z.string().nullable(),
+  entryWindowOpen: z.boolean().nullable(),
+  entryWindowSourceType: z.enum(ENTRY_WINDOW_SOURCE_TYPES).nullable(),
+  entryWindowOpenedAt: z.string().nullable(),
+  entryWindowExpiresAt: z.string().nullable(),
+  outboundMessageCount: z.number().int().nonnegative(),
+  chargeableMessageCount: z.number().int().nonnegative(),
+  freeMessageCount: z.number().int().nonnegative(),
+  unknownPricingMessageCount: z.number().int().nonnegative(),
+  estimatedCost: z.number().min(0).nullable(),
+  confirmedCost: z.number().min(0).nullable(),
+  finalCost: z.number().min(0).nullable(),
+  currency: z.string().nullable(),
+  currencyTotals: z.array(z.object({ currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  pricingRuleId: z.string().uuid().nullable(),
+  pricingAvailable: z.boolean(),
+});
+export type ConversationCostSummary = z.infer<typeof conversationCostSummarySchema>;
+
+export const budgetPolicySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  scopeType: z.enum(BUDGET_SCOPE_TYPES),
+  scopeId: z.string().uuid().nullable(),
+  currency: ISO_4217,
+  periodType: z.enum(BUDGET_PERIOD_TYPES),
+  amountLimit: positiveMoney,
+  warningThresholdPercentage: z.number().min(1).max(100),
+  criticalThresholdPercentage: z.number().min(1).max(100),
+  hardStopEnabled: z.boolean(),
+  allowAdminOverride: z.boolean(),
+  status: z.enum(BUDGET_POLICY_STATUSES),
+  effectiveFrom: z.string(),
+  effectiveTo: z.string().nullable(),
+  createdByUserId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type BudgetPolicyDto = z.infer<typeof budgetPolicySchema>;
+
+export const budgetPolicyCreateSchema = z.object({
+  name: nameSchema,
+  scopeType: z.enum(BUDGET_SCOPE_TYPES),
+  scopeId: ID_SCHEMA.optional(),
+  currency: ISO_4217,
+  periodType: z.enum(BUDGET_PERIOD_TYPES),
+  amountLimit: z.coerce.number().positive(),
+  warningThresholdPercentage: z.coerce.number().int().min(1).max(100).default(70),
+  criticalThresholdPercentage: z.coerce.number().int().min(1).max(100).default(90),
+  hardStopEnabled: z.coerce.boolean().default(true),
+  allowAdminOverride: z.coerce.boolean().default(true),
+  effectiveFrom: z.string().trim(),
+  effectiveTo: z.string().trim().nullable().optional(),
+});
+export type BudgetPolicyCreateInput = z.infer<typeof budgetPolicyCreateSchema>;
+
+export const budgetPolicyUpdateSchema = z
+  .object({
+    name: nameSchema.optional(),
+    amountLimit: z.coerce.number().positive().optional(),
+    warningThresholdPercentage: z.coerce.number().int().min(1).max(100).optional(),
+    criticalThresholdPercentage: z.coerce.number().int().min(1).max(100).optional(),
+    hardStopEnabled: z.coerce.boolean().optional(),
+    allowAdminOverride: z.coerce.boolean().optional(),
+    effectiveTo: z.string().trim().nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: 'AT_LEAST_ONE_FIELD_REQUIRED' });
+export type BudgetPolicyUpdateInput = z.infer<typeof budgetPolicyUpdateSchema>;
+
+export const budgetPolicyQuerySchema = z.object({
+  scopeType: z.enum(BUDGET_SCOPE_TYPES).optional(),
+  status: z.enum(BUDGET_POLICY_STATUSES).optional(),
+});
+export type BudgetPolicyQuery = z.infer<typeof budgetPolicyQuerySchema>;
+
+export const budgetPolicyListSchema = z.object({
+  items: z.array(budgetPolicySchema),
+  total: z.number().int().nonnegative(),
+});
+export type BudgetPolicyList = z.infer<typeof budgetPolicyListSchema>;
+
+export const budgetUsageSchema = z.object({
+  policyId: z.string().uuid(),
+  scopeType: z.enum(BUDGET_SCOPE_TYPES),
+  periodType: z.enum(BUDGET_PERIOD_TYPES),
+  periodStart: z.string(),
+  periodEnd: z.string().nullable(),
+  currency: z.string(),
+  amountLimit: z.number().min(0),
+  estimatedUsage: z.number().min(0),
+  confirmedUsage: z.number().min(0),
+  adjustedUsage: z.number().min(0),
+  totalUsage: z.number().min(0),
+  remainingAmount: z.number().min(0),
+  usagePercentage: z.number().min(0),
+  status: z.enum(['OK', 'WARNING', 'CRITICAL', 'BLOCKED']),
+  calculatedAt: z.string(),
+});
+export type BudgetUsage = z.infer<typeof budgetUsageSchema>;
+
+export const budgetOverrideInputSchema = z.object({
+  policyId: ID_SCHEMA,
+  relatedCampaignId: ID_SCHEMA.optional(),
+  relatedMessageId: ID_SCHEMA.optional(),
+  amountAfter: z.coerce.number().min(0),
+  reason: z.string().trim().min(3, 'REASON_REQUIRED').max(1000),
+});
+export type BudgetOverrideInput = z.infer<typeof budgetOverrideInputSchema>;
+
+export const costReconciliationJobSchema = z.object({
+  id: z.string().uuid(),
+  sourceType: z.string(),
+  originalFilename: z.string().nullable(),
+  periodStart: z.string().nullable(),
+  periodEnd: z.string().nullable(),
+  currency: z.string().nullable(),
+  status: z.enum(COST_RECONCILIATION_STATUSES),
+  totalRows: z.number().int().nonnegative(),
+  matchedRows: z.number().int().nonnegative(),
+  unmatchedRows: z.number().int().nonnegative(),
+  adjustedRows: z.number().int().nonnegative(),
+  createdByUserId: z.string().uuid().nullable(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type CostReconciliationJobDto = z.infer<typeof costReconciliationJobSchema>;
+
+export const costReconciliationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(COST_RECONCILIATION_STATUSES).optional(),
+});
+export type CostReconciliationQuery = z.infer<typeof costReconciliationQuerySchema>;
+
+export const paginatedCostReconciliationsSchema = paginatedResponseSchema(costReconciliationJobSchema);
+export type PaginatedCostReconciliations = z.infer<typeof paginatedCostReconciliationsSchema>;
+
+export const reconciliationUnmatchedRowSchema = z.object({
+  rowNumber: z.number().int().positive(),
+  metaMessageId: z.string().nullable(),
+  phoneNumberId: z.string().nullable(),
+  recipientMarket: z.string().nullable(),
+  messageCategory: z.string().nullable(),
+  billingDate: z.string().nullable(),
+  amount: z.number().min(0).nullable(),
+  currency: z.string().nullable(),
+  matchedMessageId: z.string().uuid().nullable(),
+});
+export type ReconciliationUnmatchedRow = z.infer<typeof reconciliationUnmatchedRowSchema>;
+
+export const costReconciliationUploadResultSchema = z.object({
+  job: costReconciliationJobSchema,
+  headers: z.array(z.string()),
+  previewRows: z.array(z.array(z.unknown())),
+});
+export type CostReconciliationUploadResult = z.infer<typeof costReconciliationUploadResultSchema>;
+
+export const costReconciliationValidationSummarySchema = z.object({
+  job: costReconciliationJobSchema,
+  totalRows: z.number().int().nonnegative(),
+  matchedRows: z.number().int().nonnegative(),
+  unmatchedRows: z.number().int().nonnegative(),
+  issues: z.array(z.string()),
+});
+export type CostReconciliationValidationSummary = z.infer<typeof costReconciliationValidationSummarySchema>;
+
+export const costReconciliationDetailSchema = z.object({
+  job: costReconciliationJobSchema,
+  unmatchedRows: z.array(reconciliationUnmatchedRowSchema),
+});
+export type CostReconciliationDetail = z.infer<typeof costReconciliationDetailSchema>;
+
+export const outcomeSchema = z.object({
+  id: z.string().uuid(),
+  conversationId: z.string().uuid(),
+  campaignId: z.string().uuid().nullable(),
+  contactId: z.string().uuid().nullable(),
+  outcome: z.enum(CONVERSATION_OUTCOMES),
+  revenueAmount: z.number().min(0).nullable(),
+  revenueCurrency: z.string().nullable(),
+  notes: z.string().nullable(),
+  recordedByUserId: z.string().uuid().nullable(),
+  occurredAt: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type OutcomeDto = z.infer<typeof outcomeSchema>;
+
+export const outcomeCreateSchema = z.object({
+  outcome: z.enum(CONVERSATION_OUTCOMES),
+  revenueAmount: z.coerce.number().min(0).optional(),
+  revenueCurrency: ISO_4217.optional(),
+  notes: z.string().trim().max(1000).optional(),
+  occurredAt: z.string().trim().optional(),
+});
+export type OutcomeCreateInput = z.infer<typeof outcomeCreateSchema>;
+
+export const whatsappCostsReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  currencyTotals: z.array(
+    z.object({
+      currency: z.string(),
+      estimatedCost: z.number().min(0),
+      confirmedCost: z.number().min(0),
+      adjustedCost: z.number().min(0),
+      finalCost: z.number().min(0),
+      freeMessages: z.number().int().nonnegative(),
+      chargeableMessages: z.number().int().nonnegative(),
+      unknownPricingMessages: z.number().int().nonnegative(),
+      outboundMessages: z.number().int().nonnegative(),
+      deliveredMessages: z.number().int().nonnegative(),
+      readMessages: z.number().int().nonnegative(),
+      replies: z.number().int().nonnegative(),
+    }),
+  ),
+  costPerDeliveredMessage: z.number().min(0).nullable(),
+  costPerReadMessage: z.number().min(0).nullable(),
+  costPerReply: z.number().min(0).nullable(),
+  costPerMarket: z.array(z.object({ market: z.string(), currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  costPerCategory: z.array(z.object({ category: z.enum(PRICING_CATEGORIES), currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  costPerCampaign: z.array(z.object({ campaignId: z.string().uuid(), campaignName: z.string(), currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  costPerCreator: z.array(z.object({ userId: z.string().uuid(), name: z.string(), currency: z.string(), finalCost: z.number().min(0) })),
+});
+export type WhatsappCostsReport = z.infer<typeof whatsappCostsReportSchema>;
+
+export const conversationCostReportRowSchema = z.object({
+  conversationId: z.string().uuid(),
+  contactName: z.string().nullable(),
+  phoneE164: z.string(),
+  outboundMessages: z.number().int().nonnegative(),
+  chargeableMessages: z.number().int().nonnegative(),
+  freeMessages: z.number().int().nonnegative(),
+  unknownPricingMessages: z.number().int().nonnegative(),
+  estimatedCost: z.number().min(0),
+  finalCost: z.number().min(0),
+  currency: z.string(),
+  resolved: z.boolean(),
+  outcome: z.enum(CONVERSATION_OUTCOMES).nullable(),
+  avgOutboundPerConversation: z.number().min(0),
+});
+export type ConversationCostReportRow = z.infer<typeof conversationCostReportRowSchema>;
+
+export const conversationCostReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  currencyTotals: z.array(z.object({ currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  totalConversations: z.number().int().nonnegative(),
+  averageCostPerConversation: z.number().min(0),
+  averageOutboundPerConversation: z.number().min(0),
+  rows: z.array(conversationCostReportRowSchema),
+});
+export type ConversationCostReport = z.infer<typeof conversationCostReportSchema>;
+
+export const agentCostReportRowSchema = z.object({
+  userId: z.string().uuid(),
+  name: z.string(),
+  email: z.string(),
+  outboundMessages: z.number().int().nonnegative(),
+  estimatedCost: z.number().min(0),
+  finalCost: z.number().min(0),
+  currency: z.string(),
+  conversationsResolved: z.number().int().nonnegative(),
+});
+export type AgentCostReportRow = z.infer<typeof agentCostReportRowSchema>;
+
+export const agentCostReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  currencyTotals: z.array(z.object({ currency: z.string(), estimatedCost: z.number().min(0), finalCost: z.number().min(0) })),
+  rows: z.array(agentCostReportRowSchema),
+});
+export type AgentCostReport = z.infer<typeof agentCostReportSchema>;
+
+export const roiReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  generatedAt: z.string(),
+  campaigns: z.array(z.object({ campaignId: z.string().uuid(), campaignName: z.string(), currency: z.string(), revenue: z.number().min(0), cost: z.number().min(0), contributionMargin: z.number().min(0), roi: z.number().nullable() })),
+  totals: z.array(z.object({ currency: z.string(), revenue: z.number().min(0), cost: z.number().min(0), contributionMargin: z.number().min(0), roi: z.number().nullable() })),
+  costPerQualifiedLead: z.number().min(0).nullable(),
+  costPerSale: z.number().min(0).nullable(),
+  currencyAvailable: z.boolean(),
+});
+export type RoiReport = z.infer<typeof roiReportSchema>;
+
+export const whatsappCostsQuerySchema = z.object({
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+});
+export type WhatsappCostsQuery = z.infer<typeof whatsappCostsQuerySchema>;
 
 // ---------- Reports ----------
 
@@ -1740,6 +2444,21 @@ export const dashboardSummarySchema = z.object({
     recipientsDelivered: z.number().int().nonnegative(),
     failedSends: z.number().int().nonnegative(),
     optedOut: z.number().int().nonnegative(),
+    outboundMessages: z.number().int().nonnegative(),
+    chargeableServiceMessages: z.number().int().nonnegative(),
+    freeMessages: z.number().int().nonnegative(),
+    pricingUnavailableMessages: z.number().int().nonnegative(),
+    freeEntryPointConversations: z.number().int().nonnegative(),
+    costToday: z.number().min(0),
+    costThisMonth: z.number().min(0),
+    estimatedPendingCost: z.number().min(0),
+    confirmedCost: z.number().min(0),
+    finalCost: z.number().min(0),
+    remainingDailyBudget: z.number().min(0).nullable(),
+    remainingMonthlyBudget: z.number().min(0).nullable(),
+    campaignsBlockedByBudget: z.number().int().nonnegative(),
+    costPerReply: z.number().min(0).nullable(),
+    costPerSale: z.number().min(0).nullable(),
   }),
   rates: z.object({
     deliveryRate: z.number().min(0).max(1),
@@ -1938,6 +2657,9 @@ export const EXPORT_JOB_TYPES = [
   'inbox-performance',
   'failure-analysis',
   'audit-log',
+  'whatsapp-costs',
+  'conversation-costs',
+  'agent-costs',
 ] as const;
 export type ExportJobType = (typeof EXPORT_JOB_TYPES)[number];
 

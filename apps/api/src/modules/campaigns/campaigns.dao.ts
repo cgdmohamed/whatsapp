@@ -11,6 +11,7 @@ import type {
 } from '@wa/shared';
 
 import { DATABASE, type DrizzleDB } from '../../common/database/database.module';
+import { toMoney } from '../../common/money';
 import { campaigns, campaignRecipients, type CampaignRow, type NewCampaign } from '../../db/schema';
 
 export interface CampaignListResult {
@@ -48,6 +49,12 @@ export function toCampaignDto(row: CampaignRow): CampaignDto {
     repliedRecipients: row.repliedRecipients,
     failedRecipients: row.failedRecipients,
     optedOutRecipients: row.optedOutRecipients,
+    pricingRuleSetId: row.pricingRuleSetId ?? null,
+    estimatedCost: toMoney(row.estimatedCost),
+    finalCost: toMoney(row.finalCost),
+    costCurrency: row.costCurrency ?? null,
+    pricingCalculatedAt: row.pricingCalculatedAt ? row.pricingCalculatedAt.toISOString() : null,
+    pricingWarningAcknowledgedAt: row.pricingWarningAcknowledgedAt ? row.pricingWarningAcknowledgedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,

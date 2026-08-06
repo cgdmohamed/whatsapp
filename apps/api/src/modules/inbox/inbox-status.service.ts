@@ -4,6 +4,7 @@ import type { NormalizedStatusUpdate } from '@wa/shared';
 import { MessagesDao } from './messages.dao';
 import { ConversationsDao } from './conversations.dao';
 import { InboxRealtimeService } from './inbox.realtime.service';
+import { CostResolverService } from '../pricing/cost-resolver.service';
 import { toMessageDto } from './inbox.mapper';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class InboxStatusService {
     private readonly messagesDao: MessagesDao,
     private readonly conversationsDao: ConversationsDao,
     private readonly realtime: InboxRealtimeService,
+    private readonly costResolver: CostResolverService,
   ) {}
 
   async applyStatusUpdate(status: NormalizedStatusUpdate, webhookEventId: string): Promise<void> {
@@ -68,6 +70,15 @@ export class InboxStatusService {
         },
         { assignedUserId: conversation?.assignedUserId ?? null },
       );
+    }
+
+    if (status.pricing && messageRow.direction === 'OUTBOUND') {
+      await this.costResolver.confirmFromWebhook(status.waMessageId, {
+        confirmedCost: status.pricing.billable === false ? 0 : null,
+        chargeStatus: status.pricing.billable === false ? 'FREE' : undefined,
+        currency: null,
+        source: 'webhook',
+      });
     }
   }
 }

@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DelayedError, type Job } from 'bullmq';
-import type { TemplateSnapshot } from '@wa/shared';
+import type { PricingCategory, TemplateSnapshot } from '@wa/shared';
 
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { MessageTemplatesDao } from '../whatsapp/templates/message-templates.dao';
 import { WhatsAppPhoneNumbersDao } from '../whatsapp/whatsapp-phone-numbers.dao';
 import { MetaApiError } from '../whatsapp/meta-api/meta-api.errors';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CostResolverService } from '../pricing/cost-resolver.service';
 import { CampaignDispatchService } from './campaign-dispatch.service';
 import { CampaignRecipientsDao } from './campaign-recipients.dao';
 import { CampaignsDao } from './campaigns.dao';
@@ -65,6 +66,7 @@ export class CampaignProcessor {
     private readonly messagesDao: MessagesDao,
     private readonly dispatchService: CampaignDispatchService,
     private readonly notificationsService: NotificationsService,
+    private readonly costResolver: CostResolverService,
   ) {}
 
   async buildRecipients(job: Job<BuildJobData>): Promise<void> {
@@ -201,7 +203,7 @@ export class CampaignProcessor {
         phoneNumberId: metaPhoneNumberId ?? '',
       });
       const metaMessageId = response.messages[0]?.id ?? null;
-      await this.messagesDao.insert({
+      const sentMessage = await this.messagesDao.insert({
         contactId: recipient.contactId,
         conversationId: null,
         campaignId: campaign.id,
@@ -222,6 +224,7 @@ export class CampaignProcessor {
         metaMessageId,
         sentAt: new Date(),
       });
+      await this.recordCostForSend(sentMessage, recipient, campaign, template.category);
     } catch (error) {
       if (error instanceof MetaApiError) {
         const transient = error.normalized.is_transient;
@@ -250,6 +253,34 @@ export class CampaignProcessor {
         template,
         'SEND_ERROR',
         error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  private async recordCostForSend(
+    message: import('../../db/schema').MessageRow,
+    recipient: CampaignRecipientRow,
+    campaign: { id: string; whatsappPhoneNumberId: string | null },
+    templateCategory: import('@wa/shared').TemplateCategory | null,
+  ): Promise<void> {
+    try {
+      await this.costResolver.record({
+        messageId: message.id,
+        campaignId: campaign.id,
+        campaignRecipientId: recipient.id,
+        contactId: recipient.contactId ?? undefined,
+        whatsappPhoneNumberId: campaign.whatsappPhoneNumberId ?? undefined,
+        direction: 'OUTBOUND',
+        messageCategory: (templateCategory ?? 'UNKNOWN') as PricingCategory,
+        messageType: 'template',
+        recipientCountry: recipient.recipientCountry,
+        recipientMarket: recipient.recipientMarket,
+        serviceWindowOpen: false,
+        freeEntryPointWindowOpen: false,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Cost recording failed for message ${message.id}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

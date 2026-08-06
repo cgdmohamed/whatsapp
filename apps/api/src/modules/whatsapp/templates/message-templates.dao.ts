@@ -104,6 +104,14 @@ export class MessageTemplatesDao {
     return this.db.query.messageTemplates.findFirst({ where: eq(messageTemplates.id, id) });
   }
 
+  findByName(name: string, language?: string): Promise<MessageTemplateRow | undefined> {
+    return this.db.query.messageTemplates.findFirst({
+      where: language
+        ? and(eq(messageTemplates.name, name), eq(messageTemplates.language, language))
+        : eq(messageTemplates.name, name),
+    });
+  }
+
   findByMetaTemplateId(accountId: string, metaTemplateId: string): Promise<MessageTemplateRow | undefined> {
     return this.db.query.messageTemplates.findFirst({
       where: and(

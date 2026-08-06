@@ -31,6 +31,7 @@ const TagsPage = lazy(() => import('./pages/tags-page').then((m) => ({ default: 
 const TemplatesPage = lazy(() => import('./pages/templates-page').then((m) => ({ default: m.TemplatesPage })));
 const UsersPage = lazy(() => import('./pages/users-page').then((m) => ({ default: m.UsersPage })));
 const WhatsAppPage = lazy(() => import('./pages/whatsapp-page').then((m) => ({ default: m.WhatsAppPage })));
+const WhatsAppPricingPage = lazy(() => import('./pages/whatsapp-pricing-page').then((m) => ({ default: m.WhatsAppPricingPage })));
 
 function PageFallback() {
   return (
@@ -118,6 +119,14 @@ export default function App() {
             element={
               <RequireRole roles={['ADMIN']}>
                 <EmailSettingsPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="settings/whatsapp-pricing"
+            element={
+              <RequireRole roles={['ADMIN']}>
+                <WhatsAppPricingPage />
               </RequireRole>
             }
           />

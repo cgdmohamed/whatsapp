@@ -9,6 +9,7 @@ import { AuditService } from '../../common/audit/audit.module';
 import { SettingsService } from '../settings/settings.service';
 import { ContactsDao } from '../contacts/contacts.dao';
 import { CampaignRecipientsDao } from '../campaigns/campaign-recipients.dao';
+import { CostResolverService } from '../pricing/cost-resolver.service';
 import { optInRecords, suppressionEntries, type ContactRow, type ConversationRow, type MessageRow } from '../../db/schema';
 import { ConversationsDao } from './conversations.dao';
 import { MediaFilesDao } from './media-files.dao';
@@ -38,6 +39,7 @@ export class InboxInboundService {
     private readonly realtime: InboxRealtimeService,
     private readonly settingsService: SettingsService,
     private readonly auditService: AuditService,
+    private readonly costResolver: CostResolverService,
   ) {}
 
   async handleInboundMessage(message: NormalizedInboundMessage, webhookEventId: string): Promise<InboundMessageResult> {
@@ -90,6 +92,8 @@ export class InboxInboundService {
 
     await this.contactsDao.update(contact.id, { lastInboundMessageAt: now });
 
+    await this.recordInboundCost(messageRow);
+
     const media = await this.handleInboundMedia(message, messageRow, conversation.id);
 
     const isOptOut = this.isOptOut(this.extractText(message), message);
@@ -120,6 +124,20 @@ export class InboxInboundService {
     );
 
     return { message: messageRow, conversation: refreshedConversation, contact, isOptOut };
+  }
+
+  private async recordInboundCost(message: MessageRow): Promise<void> {
+    try {
+      await this.costResolver.recordInbound(message.id, {
+        conversationId: message.conversationId ?? undefined,
+        contactId: message.contactId ?? undefined,
+        whatsappPhoneNumberId: message.whatsappPhoneNumberId ?? undefined,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Inbound cost recording failed for message ${message.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   private async findOrCreateContact(phone: string): Promise<ContactRow> {

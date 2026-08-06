@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  AgentCostReport,
   CampaignPerformanceQuery,
   ContactBreakdownDto,
   ContactReportQuery,
+  ConversationCostReport,
   DashboardQuery,
   DashboardSummaryDto,
   DashboardTrendsDto,
@@ -12,6 +14,9 @@ import type {
   PaginatedCampaignPerformance,
   PaginatedContactReport,
   PaginatedInboxPerformance,
+  RoiReport,
+  WhatsappCostsQuery,
+  WhatsappCostsReport,
 } from '@wa/shared';
 
 import { ReportsDao } from './reports-dao';
@@ -67,5 +72,21 @@ export class ReportsService {
 
   contactBreakdown(): Promise<ContactBreakdownDto> {
     return this.dao.contactBreakdown();
+  }
+
+  whatsappCosts(query: WhatsappCostsQuery): Promise<WhatsappCostsReport> {
+    return this.dao.whatsappCosts(query);
+  }
+
+  conversationCostReport(query: WhatsappCostsQuery): Promise<ConversationCostReport> {
+    return this.dao.conversationCostReport(query);
+  }
+
+  agentCostReport(query: WhatsappCostsQuery): Promise<AgentCostReport> {
+    return this.dao.agentCostReport(query);
+  }
+
+  roiReport(query: WhatsappCostsQuery): Promise<RoiReport> {
+    return this.dao.roiReport(query);
   }
 }
