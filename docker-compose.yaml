@@ -1,17 +1,18 @@
-# Self-hosted deployment for the WhatsApp Campaign Manager.
+# Self-hosted deployment for the WhatsApp Campaign Manager (Coolify-native).
 #
 # Usage:
 #   docker compose build
 #   docker compose up -d
 #
+# Production secrets are supplied through Coolify Environment Variables.
 # The web container serves the SPA and reverse-proxies /api to the API
-# container, so the whole stack is reachable at http://127.0.0.1:8080.
-# The API is bound to http://127.0.0.1:4000.
+# container, so the whole stack is reachable through Coolify's domain.
 #
-# Production checklist before `up`:
-#   - Copy apps/api/.env into ./deploy/env/api.env and fill real secrets.
-#   - Set META_* credentials in api.env to enable sending/whatsapp features.
-#   - Put PostgreSQL/Redis behind a private network and set strong passwords.
+# Production checklist before deploying via Coolify:
+#   - Set all REQUIRED environment variables in the Coolify dashboard.
+#   - Set META_* credentials to enable sending/whatsapp features.
+#   - Ensure POSTGRES_PASSWORD matches across all services.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -50,8 +51,45 @@ services:
       target: api
     restart: "no"
     working_dir: /app/apps/api
-    env_file:
-      - ./deploy/env/api.env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      TRUST_PROXY: 1
+      DATABASE_URL: postgresql://whatsapp:${POSTGRES_PASSWORD}@postgres:5432/whatsapp
+      REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      RATE_LIMIT_DISABLED: ${RATE_LIMIT_DISABLED:-false}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      META_WABA_ID: ${META_WABA_ID:-}
+      META_PHONE_NUMBER_ID: ${META_PHONE_NUMBER_ID:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-v21.0}
+      EXPORTS_DIR: /app/apps/api/exports
+      IMPORT_UPLOAD_DIR: /app/apps/api/data/imports
+      INBOX_MEDIA_DIR: /app/apps/api/data/inbox-media
+      INBOX_MEDIA_SIGNING_SECRET: ${INBOX_MEDIA_SIGNING_SECRET:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-true}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,10 +104,46 @@ services:
       context: .
       target: api
     restart: unless-stopped
-    env_file:
-      - ./deploy/env/api.env
     environment:
+      NODE_ENV: production
+      PORT: 4000
       PROCESS_ROLE: api
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      TRUST_PROXY: 1
+      DATABASE_URL: postgresql://whatsapp:${POSTGRES_PASSWORD}@postgres:5432/whatsapp
+      REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      RATE_LIMIT_DISABLED: ${RATE_LIMIT_DISABLED:-false}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      META_WABA_ID: ${META_WABA_ID:-}
+      META_PHONE_NUMBER_ID: ${META_PHONE_NUMBER_ID:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-v21.0}
+      EXPORTS_DIR: /app/apps/api/exports
+      IMPORT_UPLOAD_DIR: /app/apps/api/data/imports
+      INBOX_MEDIA_DIR: /app/apps/api/data/inbox-media
+      INBOX_MEDIA_SIGNING_SECRET: ${INBOX_MEDIA_SIGNING_SECRET:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-true}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,8 +151,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:4000:4000"
     volumes:
       - api_data:/app/apps/api/data
       - api_exports:/app/apps/api/exports
@@ -91,10 +163,46 @@ services:
       context: .
       target: api
     restart: unless-stopped
-    env_file:
-      - ./deploy/env/api.env
     environment:
+      NODE_ENV: production
+      PORT: 4000
       PROCESS_ROLE: worker
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      TRUST_PROXY: 1
+      DATABASE_URL: postgresql://whatsapp:${POSTGRES_PASSWORD}@postgres:5432/whatsapp
+      REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      RATE_LIMIT_DISABLED: ${RATE_LIMIT_DISABLED:-false}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      META_WABA_ID: ${META_WABA_ID:-}
+      META_PHONE_NUMBER_ID: ${META_PHONE_NUMBER_ID:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-v21.0}
+      EXPORTS_DIR: /app/apps/api/exports
+      IMPORT_UPLOAD_DIR: /app/apps/api/data/imports
+      INBOX_MEDIA_DIR: /app/apps/api/data/inbox-media
+      INBOX_MEDIA_SIGNING_SECRET: ${INBOX_MEDIA_SIGNING_SECRET:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-true}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,8 +222,6 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "127.0.0.1:8080:80"
     networks:
       - backend
 
