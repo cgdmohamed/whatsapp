@@ -102,7 +102,7 @@ packages/
   config/     Shared runtime config helpers
   ui/         React UI components
 deploy/       Nginx configs, env templates, backup/restore scripts
-docker-compose.yml, Dockerfile, ecosystem.config.js
+docker-compose.yaml, Dockerfile, ecosystem.config.js
 ```
 
 ## Testing
