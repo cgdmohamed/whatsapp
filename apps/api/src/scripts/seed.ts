@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { eq } from 'drizzle-orm';
 import { type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { argon2id } from 'hash-wasm';
@@ -60,7 +61,7 @@ async function main(): Promise<void> {
   }
 
   const pool = new Pool({ connectionString: env.DATABASE_URL });
-  const db = drizzle(pool, { schema: { users } });
+  const db = drizzle(pool, { schema });
   try {
     await seedAdmin(db, env);
   } finally {
