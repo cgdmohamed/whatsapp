@@ -8,6 +8,7 @@ import * as schema from '../db/schema';
 import { seedHelpCenter } from './help-seed';
 import { seedHelpCenter1a } from './help-seed-1a';
 import { seedHelpCenter2a } from './help-seed-2a';
+import { seedAdmin } from './seed';
 
 async function main(): Promise<void> {
   const env = parseApiEnv();
@@ -24,6 +25,7 @@ async function main(): Promise<void> {
     await seedHelpCenter(db);
     await seedHelpCenter1a(db);
     await seedHelpCenter2a(db);
+    await seedAdmin(db, env);
     console.log('Database migrations applied successfully.');
   } finally {
     await pool.end();
