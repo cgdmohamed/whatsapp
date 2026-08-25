@@ -3,10 +3,11 @@ import { type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { argon2id } from 'hash-wasm';
 import { randomBytes } from 'node:crypto';
 
+import * as schema from '../db/schema';
 import { users } from '../db/schema';
 
 export async function seedAdmin(
-  db: NodePgDatabase<typeof import('../db/schema')>,
+  db: NodePgDatabase<typeof schema>,
   env: { SEED_ADMIN_NAME?: string; SEED_ADMIN_EMAIL?: string; SEED_ADMIN_PASSWORD?: string },
 ): Promise<void> {
   if (!env.SEED_ADMIN_NAME || !env.SEED_ADMIN_EMAIL || !env.SEED_ADMIN_PASSWORD) {
